@@ -18,28 +18,47 @@
 
 ## Download
 
-Download the latest Android APK from [Releases](https://github.com/DeccanHYD/Ironlog/releases).
+Get the latest Android APK from [Releases](https://github.com/DeccanHYD/Ironlog/releases).
+
+_Requires Android 7.0 or higher._
 
 Source is available for personal and non-commercial use. Commercial use requires permission.
 
 ## Features
 
-- Fast workout logging with set-by-set tracking, rest timer support, workout resume, and in-workout exercise actions
-- Training plans with editable workout days, built-in program templates, onboarding setup, and plan recommendations
-- Large exercise library with search, swap/add flows, custom exercise support, and YouTube demo links from workout menus
-- Volume analytics with weekly totals, muscle-group breakdown, push/pull/legs balance, and radar-style visualization
-- Recovery tracking with a front/back muscle heatmap, expanded body map view, and touch-based muscle inspection
-- Progress tracking for body weight, body measurements, progress photos, workout history, PRs, and calendar views
-- Local-first utilities including backup and restore flows, CSV export/import, privacy controls, gym profiles, image caching, and theme customization
-- Polished app feel with semantic haptics, smoother back gestures, dark-first theming, and mobile-first UI
+- Fast workout logging.
+  Set-by-set tracking, smart defaults, rest timer, workout resume, and in-workout actions.
+- Training plans and programs.
+  Editable workout days, built-in templates, onboarding setup, and plan recommendations.
+- Big exercise library.
+  Search, add, swap, custom exercises, and YouTube demo links from workout menus.
+- Volume analytics.
+  Weekly totals, muscle breakdown, push/pull/legs balance, radar chart, and share cards.
+- Recovery tracking.
+  Interactive front/back muscle map with heat states and touch tooltips.
+- Progress tracking.
+  Body weight, body measurements, progress photos, PRs, history, and calendar views.
+- Local-first data tools.
+  Backup center, restore flows, CSV import/export, privacy controls, and image caching.
+- Premium app feel.
+  Semantic haptics, smoother back gestures, dark-first UI, and theme support.
+- Gym setup tools.
+  Gym profiles, bar weight settings, plate calculator, and equipment-aware workflows.
+- Utility screens.
+  Stats, settings, exercise progress, body analytics, and library management.
 
-## Why IronLog Feels Different
+## What Stands Out
 
-- Offline-first by default, so your training data lives on your device instead of depending on a cloud-first backend
-- Interactive muscle recovery map with front/back region inspection, which most gym apps replace with generic recovery scores
-- Real-history program intelligence that reacts to logged behavior, recovery, and volume instead of fake AI filler text
-- Shareable analytics cards built around actual training data, not just static charts hidden in a stats tab
-- Practical gym features many apps skip, including gym profiles, bar-weight setup, CSV import/export, and in-workout YouTube demo access
+- Offline-first by default.
+  Your training data stays on your device instead of living behind a cloud-first backend.
+- Interactive recovery map.
+  Front/back muscle inspection is more visual and useful than generic recovery scores.
+- Real-history program intelligence.
+  Recommendations react to logged behavior, volume, and recovery instead of fake AI filler.
+- Shareable analytics.
+  Volume cards and progress views are built from real training data.
+- Rare quality-of-life tools.
+  Gym profiles, bar-weight setup, CSV import/export, and in-workout YouTube access are built in.
 
 ## Build From Source
 
