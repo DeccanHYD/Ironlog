@@ -3,62 +3,84 @@
 
   <h1>IronLog</h1>
 
-  <p><strong>Offline-first workout tracking for Android.</strong></p>
+  <p><strong>Offline-first workout tracker with recovery heatmaps and useful analytics.</strong></p>
 
-  <p>Built for lifters who want fast logging, useful analytics, and local-first control over their training data.</p>
+  <p>Built for lifters who want faster logging, real muscle and recovery insight, and local-first control over their training data without cloud lock-in.</p>
 
   <p>
     <a href="https://github.com/DeccanHYD/Ironlog/releases"><img src="https://img.shields.io/github/v/release/DeccanHYD/Ironlog?label=stable" alt="Latest release" /></a>
     <a href="https://github.com/DeccanHYD/Ironlog/releases"><img src="https://img.shields.io/github/downloads/DeccanHYD/Ironlog/total" alt="Downloads" /></a>
-    <a href="LICENSE"><img src="https://img.shields.io/badge/license-personal%20%2B%20non--commercial-orange.svg" alt="Personal and non-commercial license" /></a>
+    <a href="https://github.com/DeccanHYD/Ironlog/commits"><img src="https://img.shields.io/github/last-commit/DeccanHYD/Ironlog" alt="Last commit" /></a>
+    <a href="LICENSE"><img src="https://img.shields.io/badge/license-source--available-orange.svg" alt="Source-available license" /></a>
   </p>
+
+  <p>
+    <a href="https://github.com/DeccanHYD/Ironlog/releases/latest"><img src="https://img.shields.io/badge/Download-Latest_APK-ff6a00?style=for-the-badge" alt="Download latest APK" /></a>
+    <a href="https://github.com/DeccanHYD/Ironlog/releases/latest"><img src="https://img.shields.io/badge/Try_IronLog_on-Android-1b1b1b?style=for-the-badge&logo=android&logoColor=3DDC84" alt="Try IronLog on Android" /></a>
+  </p>
+
+  <p><sub>Android 7.0+ • offline-first • backup and CSV export built in</sub></p>
 </div>
 
----
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="assets/readme/home-overview.png" alt="IronLog home screen with recommendation card, workout streak, and recovery heatmap." width="100%" />
+      <br />
+      <strong>Home overview</strong>
+      <br />
+      Recovery map, streaks, and a clear next-workout recommendation.
+    </td>
+    <td align="center" width="50%">
+      <img src="assets/readme/workout-logging.png" alt="IronLog workout logging screen with exercise cards and quick set logging." width="100%" />
+      <br />
+      <strong>Workout logging</strong>
+      <br />
+      Fast set-by-set logging with notes, rest timers, and smart defaults.
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="assets/readme/volume-analytics.png" alt="IronLog analytics screen showing muscle breakdown and push-pull-legs balance." width="100%" />
+      <br />
+      <strong>Volume analytics</strong>
+      <br />
+      Radar, muscle breakdowns, and push/pull/legs balance from real training data.
+    </td>
+    <td align="center" width="50%">
+      <img src="assets/readme/plans-and-templates.png" alt="IronLog plans screen with reusable workout programs and templates." width="100%" />
+      <br />
+      <strong>Plans and templates</strong>
+      <br />
+      Reusable workout days, program structure, and quick setup for your next block.
+    </td>
+  </tr>
+</table>
+
+> Built for lifters who want speed, local control, and recovery visibility without subscription bloat.
 
 ## Download
 
-Get the latest Android APK from [Releases](https://github.com/DeccanHYD/Ironlog/releases).
+Download the latest Android APK from [GitHub Releases](https://github.com/DeccanHYD/Ironlog/releases/latest).
 
 _Requires Android 7.0 or higher._
 
-Source is available for personal and non-commercial use. Commercial use requires permission.
+## Why IronLog
 
-## Features
+IronLog is designed to feel fast in the gym and useful after the session. You can log quickly, see recovery and volume clearly, and keep your data on-device instead of depending on a cloud-first backend.
 
-- Fast workout logging.
-  Set-by-set tracking, smart defaults, rest timer, workout resume, and in-workout actions.
-- Training plans and programs.
-  Editable workout days, built-in templates, onboarding setup, and plan recommendations.
-- Big exercise library.
-  Search, add, swap, custom exercises, and YouTube demo links from workout menus.
-- Volume analytics.
-  Weekly totals, muscle breakdown, push/pull/legs balance, radar chart, and share cards.
-- Recovery tracking.
-  Interactive front/back muscle map with heat states and touch tooltips.
-- Progress tracking.
-  Body weight, body measurements, progress photos, PRs, history, and calendar views.
-- Local-first data tools.
-  Backup center, restore flows, CSV import/export, privacy controls, and image caching.
-- Premium app feel.
-  Semantic haptics, smoother back gestures, dark-first UI, and theme support.
-- Gym setup tools.
-  Gym profiles, bar weight settings, plate calculator, and equipment-aware workflows.
-- Utility screens.
-  Stats, settings, exercise progress, body analytics, and library management.
+## What You Get
 
-## What Stands Out
-
-- Offline-first by default.
-  Your training data stays on your device instead of living behind a cloud-first backend.
-- Interactive recovery map.
-  Front/back muscle inspection is more visual and useful than generic recovery scores.
-- Real-history program intelligence.
-  Recommendations react to logged behavior, volume, and recovery instead of fake AI filler.
-- Shareable analytics.
-  Volume cards and progress views are built from real training data.
-- Rare quality-of-life tools.
-  Gym profiles, bar-weight setup, CSV import/export, and in-workout YouTube access are built in.
+- Fast workout logging with set-by-set entry, smart defaults, rest timers, resume support, and in-workout actions.
+- Recovery heatmaps with interactive front/back muscle views instead of generic recovery scores.
+- Volume analytics with weekly totals, muscle breakdowns, push/pull/legs balance, radar charts, and share cards.
+- Programs and planning tools with editable workout days, templates, onboarding setup, and plan recommendations.
+- Exercise tools with search, custom exercises, swaps, and YouTube demo links right from workout flows.
+- Progress tracking for body weight, measurements, PRs, history, and calendar views.
+- Local-first data tools with backups, restore flows, CSV import/export, privacy controls, and image caching.
+- Gym quality-of-life features including gym profiles, bar weight setup, plate calculator, haptics, and theme support.
 
 ## Build From Source
 
@@ -79,4 +101,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.
 
 ## License
 
-Released under the [IronLog Personal Use License](LICENSE).
+IronLog is source-available, not open source in the standard OSI sense.
+
+It is released under the [IronLog Personal Use License](LICENSE) for personal and non-commercial use. Commercial use requires permission.
