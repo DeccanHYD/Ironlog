@@ -8,15 +8,15 @@
   <p>Built for lifters who want faster logging, real muscle and recovery insight, and local-first control over their training data without cloud lock-in.</p>
 
   <p>
-    <a href="https://github.com/DeccanHYD/Ironlog/releases"><img src="https://img.shields.io/github/v/release/DeccanHYD/Ironlog?label=stable" alt="Latest release" /></a>
-    <a href="https://github.com/DeccanHYD/Ironlog/releases"><img src="https://img.shields.io/github/downloads/DeccanHYD/Ironlog/total" alt="Downloads" /></a>
-    <a href="https://github.com/DeccanHYD/Ironlog/commits"><img src="https://img.shields.io/github/last-commit/DeccanHYD/Ironlog" alt="Last commit" /></a>
+    <a href="https://github.com/Yannam-Builds/Ironlog/releases"><img src="https://img.shields.io/github/v/release/Yannam-Builds/Ironlog?label=stable" alt="Latest release" /></a>
+    <a href="https://github.com/Yannam-Builds/Ironlog/releases"><img src="https://img.shields.io/github/downloads/Yannam-Builds/Ironlog/total" alt="Downloads" /></a>
+    <a href="https://github.com/Yannam-Builds/Ironlog/commits"><img src="https://img.shields.io/github/last-commit/Yannam-Builds/Ironlog" alt="Last commit" /></a>
     <a href="LICENSE"><img src="https://img.shields.io/badge/license-source--available-orange.svg" alt="Source-available license" /></a>
   </p>
 
   <p>
-    <a href="https://github.com/DeccanHYD/Ironlog/releases/latest"><img src="https://img.shields.io/badge/Download-Latest_APK-ff6a00?style=for-the-badge" alt="Download latest APK" /></a>
-    <a href="https://github.com/DeccanHYD/Ironlog/releases/latest"><img src="https://img.shields.io/badge/Try_IronLog_on-Android-1b1b1b?style=for-the-badge&logo=android&logoColor=3DDC84" alt="Try IronLog on Android" /></a>
+    <a href="https://github.com/Yannam-Builds/Ironlog/releases/latest"><img src="https://img.shields.io/badge/Download-Latest_APK-ff6a00?style=for-the-badge" alt="Download latest APK" /></a>
+    <a href="https://github.com/Yannam-Builds/Ironlog/releases/latest"><img src="https://img.shields.io/badge/Try_IronLog_on-Android-1b1b1b?style=for-the-badge&logo=android&logoColor=3DDC84" alt="Try IronLog on Android" /></a>
   </p>
 
   <p><sub>Android 7.0+ • offline-first • backup and CSV export built in</sub></p>
@@ -65,7 +65,7 @@ See the full 30-image feature gallery in [features/README.md](features/README.md
 
 ## Download
 
-Download the latest Android APK from [GitHub Releases](https://github.com/DeccanHYD/Ironlog/releases/latest).
+Download the latest Android APK from [GitHub Releases](https://github.com/Yannam-Builds/Ironlog/releases/latest).
 
 _Requires Android 7.0 or higher._
 
