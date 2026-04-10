@@ -109,6 +109,8 @@ export default function BackupCenterScreen({ navigation }) {
     unlinkDriveBackup,
     updateDriveBackupFolder,
     updateDriveSyncMode,
+    saveDriveOAuthClient,
+    clearDriveOAuthClient,
     settings,
   } = useContext(AppContext);
   const colors = useTheme();
@@ -125,6 +127,8 @@ export default function BackupCenterScreen({ navigation }) {
   const [restoreCandidate, setRestoreCandidate] = useState(null);
   const [folderModalVisible, setFolderModalVisible] = useState(false);
   const [folderNameInput, setFolderNameInput] = useState('');
+  const [oauthModalVisible, setOauthModalVisible] = useState(false);
+  const [oauthClientIdInput, setOauthClientIdInput] = useState('');
 
   const refreshScreen = async () => {
     setLoadingPreview(true);
@@ -234,7 +238,7 @@ export default function BackupCenterScreen({ navigation }) {
     if (backupStatus.driveConfigured === false) {
       setAlertConfig({
         title: 'Drive unavailable',
-        message: backupStatus.driveConfigMessage || 'Google Drive backup is not configured on this alpha build.',
+        message: backupStatus.driveConfigMessage || 'Google Drive backup is not configured yet on this device.',
         buttons: [{ text: 'OK', style: 'default' }],
       });
       return;
@@ -306,6 +310,43 @@ export default function BackupCenterScreen({ navigation }) {
       await refreshScreen();
     } catch (error) {
       setAlertConfig({ title: 'Could not disconnect Drive', message: String(error?.message || error), buttons: [{ text: 'OK', style: 'default' }] });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openOauthModal = () => {
+    setOauthClientIdInput('');
+    setOauthModalVisible(true);
+  };
+
+  const handleSaveOAuthClient = async () => {
+    const next = String(oauthClientIdInput || '').trim();
+    if (!next) {
+      setAlertConfig({ title: 'Client ID required', message: 'Paste your Google OAuth Android client ID to enable Drive sign-in.', buttons: [{ text: 'OK', style: 'default' }] });
+      return;
+    }
+    setBusy(true);
+    try {
+      await saveDriveOAuthClient(next);
+      setOauthModalVisible(false);
+      await refreshScreen();
+      setAlertConfig({ title: 'Drive OAuth saved', message: 'Google Drive can now be linked from this device.', buttons: [{ text: 'OK', style: 'default' }] });
+    } catch (error) {
+      setAlertConfig({ title: 'Could not save OAuth', message: String(error?.message || error), buttons: [{ text: 'OK', style: 'default' }] });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleClearOAuthClient = async () => {
+    setBusy(true);
+    try {
+      await clearDriveOAuthClient();
+      await refreshScreen();
+      setAlertConfig({ title: 'OAuth removed', message: 'Local Google OAuth client ID was cleared for this device.', buttons: [{ text: 'OK', style: 'default' }] });
+    } catch (error) {
+      setAlertConfig({ title: 'Could not clear OAuth', message: String(error?.message || error), buttons: [{ text: 'OK', style: 'default' }] });
     } finally {
       setBusy(false);
     }
@@ -455,7 +496,7 @@ export default function BackupCenterScreen({ navigation }) {
           label={backupStatus.driveLinked ? 'Disconnect Google Drive' : backupStatus.driveConfigured === false ? 'Google Drive unavailable in this build' : 'Connect Google Drive'}
           hint={
             backupStatus.driveConfigured === false
-              ? (backupStatus.driveConfigMessage || 'Drive OAuth client is not configured for this alpha build.')
+              ? (backupStatus.driveConfigMessage || 'Drive OAuth client is not configured for this build.')
               : backupStatus.driveLinked
                 ? (
                     backupStatus.driveMode === 'folder'
@@ -470,6 +511,25 @@ export default function BackupCenterScreen({ navigation }) {
           tone={backupStatus.driveLinked ? 'danger' : 'normal'}
           disabled={!backupStatus.driveLinked && backupStatus.driveConfigured === false}
         />
+        {!backupStatus.driveLinked && backupStatus.driveConfigured === false ? (
+          <ActionButton
+            label="Set Google OAuth Client ID"
+            hint="One-time device setup to enable Drive sign-in for this build."
+            icon="key-outline"
+            colors={colors}
+            onPress={openOauthModal}
+          />
+        ) : null}
+        {!backupStatus.driveLinked && backupStatus.driveConfigured !== false ? (
+          <ActionButton
+            label="Clear Google OAuth Client ID"
+            hint="Remove local OAuth override from this device."
+            icon="trash-outline"
+            colors={colors}
+            onPress={handleClearOAuthClient}
+            tone="danger"
+          />
+        ) : null}
         {backupStatus.driveLinked ? (
           <>
             <ActionButton
@@ -632,6 +692,32 @@ export default function BackupCenterScreen({ navigation }) {
               </TouchableOpacity>
               <TouchableOpacity style={[s.modalBtn, { borderColor: colors.accent, backgroundColor: colors.accentSoft }]} onPress={handleSetDriveFolder}>
                 <Text style={[s.modalBtnText, { color: colors.accent }]}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={oauthModalVisible} transparent animationType="fade" onRequestClose={() => setOauthModalVisible(false)}>
+        <View style={s.overlay}>
+          <View style={[s.modalCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+            <Text style={[s.modalTitle, { color: colors.text }]}>Google OAuth Client ID</Text>
+            <Text style={[s.modalHint, { color: colors.subtext }]}>Paste your Android OAuth client ID (ends with `.apps.googleusercontent.com`) to enable Drive auth in this build.</Text>
+            <TextInput
+              style={[s.input, { color: colors.text, borderColor: colors.faint, backgroundColor: colors.bg }]}
+              value={oauthClientIdInput}
+              onChangeText={setOauthClientIdInput}
+              placeholder="12345-abc.apps.googleusercontent.com"
+              placeholderTextColor={colors.muted}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <View style={s.modalActions}>
+              <TouchableOpacity style={[s.modalBtn, { borderColor: colors.faint }]} onPress={() => setOauthModalVisible(false)}>
+                <Text style={[s.modalBtnText, { color: colors.muted }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[s.modalBtn, { borderColor: colors.accent, backgroundColor: colors.accentSoft }]} onPress={handleSaveOAuthClient} disabled={busy}>
+                <Text style={[s.modalBtnText, { color: colors.accent }]}>{busy ? 'Saving...' : 'Save'}</Text>
               </TouchableOpacity>
             </View>
           </View>

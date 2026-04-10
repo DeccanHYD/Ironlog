@@ -29,7 +29,16 @@ import {
   setBackupDirtyFlag,
 } from '../services/backupService';
 import { DEFAULT_BACKUP_CONFIG, DEFAULT_BACKUP_STATUS, DEFAULT_NOTIFICATION_SETTINGS } from '../services/backupConstants';
-import { connectGoogleDrive, disconnectGoogleDrive, getDriveConnectionStatus, setDriveBackupFolder, setDriveSyncMode } from '../services/googleDriveService';
+import {
+  clearDriveOAuthClientId,
+  connectGoogleDrive,
+  disconnectGoogleDrive,
+  getDriveConnectionStatus,
+  hydrateDriveOAuthConfig,
+  saveDriveOAuthClientId,
+  setDriveBackupFolder,
+  setDriveSyncMode,
+} from '../services/googleDriveService';
 import { cancelBackupJob, scheduleBackupJob } from '../services/BackupScheduler';
 import {
   SQLITE_MIGRATION_MARKER_KEY,
@@ -231,6 +240,7 @@ export function AppContextProvider({ children }) {
 
   const init = async () => {
     try {
+      await hydrateDriveOAuthConfig().catch(() => '');
       const keys = [
         'ironlog_plans',
         'ironlog_history',
@@ -570,6 +580,16 @@ export function AppContextProvider({ children }) {
     return result;
   };
 
+  const saveDriveOAuthClient = async (clientId) => {
+    await saveDriveOAuthClientId(clientId);
+    await refreshBackupState();
+  };
+
+  const clearDriveOAuthClient = async () => {
+    await clearDriveOAuthClientId();
+    await refreshBackupState();
+  };
+
   const restoreData = async (data) => {
     if (data.plans) { setPlans(data.plans); await save('ironlog_plans', data.plans); }
     if (data.history) { setHistory(data.history); await save('ironlog_history', data.history); }
@@ -628,6 +648,7 @@ export function AppContextProvider({ children }) {
       getAllData, restoreData, reloadFromStorage,
       refreshBackupState, updateBackupPreferences, updateNotificationPreferences,
       setupBackupPassphrase, runManualBackup, linkDriveBackup, unlinkDriveBackup, updateDriveBackupFolder, updateDriveSyncMode,
+      saveDriveOAuthClient, clearDriveOAuthClient,
       isHeavy: (name) => HEAVY.has(name),
     }}>
       {children}

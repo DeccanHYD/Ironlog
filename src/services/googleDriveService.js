@@ -1,6 +1,8 @@
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
 import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import { exchangeCodeAsync, fetchUserInfoAsync, refreshAsync, revokeAsync, TokenResponse } from 'expo-auth-session';
 import {
   BACKUP_DRIVE_TOKEN_SECURE_KEY,
@@ -13,14 +15,47 @@ WebBrowser.maybeCompleteAuthSession();
 const DEFAULT_DRIVE_FOLDER_NAME = 'IRONLOG Backups';
 const DRIVE_MODE_FOLDER = 'folder';
 const DRIVE_MODE_APPDATA = 'appdata';
+const DRIVE_OAUTH_ANDROID_CLIENT_ID_KEY = '@ironlog/googleDriveAndroidClientId';
+let runtimeDriveClientId = '';
+
+function readExpoExtraValue(key) {
+  const value =
+    Constants?.expoConfig?.extra?.[key]
+    ?? Constants?.manifest?.extra?.[key]
+    ?? '';
+  return String(value || '').trim();
+}
 
 function getGoogleClientId() {
   const candidates = [
+    runtimeDriveClientId,
+    readExpoExtraValue('googleDriveAndroidClientId'),
+    readExpoExtraValue('googleDriveClientId'),
+    readExpoExtraValue('googleDriveWebClientId'),
     process.env.EXPO_PUBLIC_GOOGLE_DRIVE_ANDROID_CLIENT_ID,
     process.env.EXPO_PUBLIC_GOOGLE_DRIVE_CLIENT_ID,
     process.env.EXPO_PUBLIC_GOOGLE_DRIVE_WEB_CLIENT_ID,
   ];
   return candidates.find((value) => String(value || '').trim()) || '';
+}
+
+export async function hydrateDriveOAuthConfig() {
+  const stored = await AsyncStorage.getItem(DRIVE_OAUTH_ANDROID_CLIENT_ID_KEY);
+  runtimeDriveClientId = String(stored || '').trim();
+  return runtimeDriveClientId;
+}
+
+export async function saveDriveOAuthClientId(clientId) {
+  const normalized = String(clientId || '').trim();
+  if (!normalized) throw new Error('Client ID cannot be empty.');
+  runtimeDriveClientId = normalized;
+  await AsyncStorage.setItem(DRIVE_OAUTH_ANDROID_CLIENT_ID_KEY, normalized);
+  return normalized;
+}
+
+export async function clearDriveOAuthClientId() {
+  runtimeDriveClientId = '';
+  await AsyncStorage.removeItem(DRIVE_OAUTH_ANDROID_CLIENT_ID_KEY);
 }
 
 function getRedirectUri() {
@@ -159,12 +194,20 @@ async function pruneRemoteBackups(retentionCount) {
 
 export function getDriveConfiguration() {
   const clientId = getGoogleClientId();
+  const configuredFrom = runtimeDriveClientId
+    ? 'device_override'
+    : readExpoExtraValue('googleDriveAndroidClientId') || readExpoExtraValue('googleDriveClientId') || readExpoExtraValue('googleDriveWebClientId')
+      ? 'app_config'
+      : (process.env.EXPO_PUBLIC_GOOGLE_DRIVE_ANDROID_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_DRIVE_CLIENT_ID || process.env.EXPO_PUBLIC_GOOGLE_DRIVE_WEB_CLIENT_ID)
+        ? 'env'
+        : null;
   return {
     configured: !!clientId,
     clientId,
     redirectUri: getRedirectUri(),
+    configuredFrom,
     expectedEnv:
-      'EXPO_PUBLIC_GOOGLE_DRIVE_ANDROID_CLIENT_ID (or EXPO_PUBLIC_GOOGLE_DRIVE_CLIENT_ID / EXPO_PUBLIC_GOOGLE_DRIVE_WEB_CLIENT_ID)',
+      'Set Google OAuth Android Client ID in-app, or configure EXPO_PUBLIC_GOOGLE_DRIVE_ANDROID_CLIENT_ID',
   };
 }
 
@@ -187,7 +230,8 @@ export async function getDriveConnectionStatus() {
     folderId: token?.driveFolderId || null,
     folderName: token?.driveFolderName || null,
     mode: token?.driveMode || (token?.driveFolderId ? DRIVE_MODE_FOLDER : DRIVE_MODE_APPDATA),
-    reason: config.configured ? null : `Google Drive OAuth client missing: ${config.expectedEnv}.`,
+    configuredFrom: config.configuredFrom || null,
+    reason: config.configured ? null : `Google Drive OAuth client missing. ${config.expectedEnv}.`,
   };
 }
 
