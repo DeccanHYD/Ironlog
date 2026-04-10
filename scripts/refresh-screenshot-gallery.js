@@ -80,13 +80,13 @@ async function buildGallery() {
     await sharp(sourcePath)
       .rotate()
       .resize({
-        width: 540,
-        height: 1600,
+        width: 810,
+        height: 2400,
         fit: 'inside',
         withoutEnlargement: true,
       })
       .jpeg({
-        quality: 82,
+        quality: 90,
         mozjpeg: true,
       })
       .toFile(outputPath);
