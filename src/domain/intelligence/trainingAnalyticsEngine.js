@@ -12,7 +12,13 @@ function getSessionExercises(session) {
 }
 
 function getWorkingSets(exercise) {
-  return (exercise?.sets || []).filter((setItem) => (setItem?.type || 'normal') !== 'warmup');
+  if (Array.isArray(exercise?.sets)) {
+    return exercise.sets.filter((setItem) => (setItem?.type || 'normal') !== 'warmup');
+  }
+  if (typeof exercise?.sets === 'number' && Number.isFinite(exercise.sets) && exercise.sets > 0) {
+    return Array.from({ length: Math.max(0, Math.floor(exercise.sets)) }, () => ({ type: 'normal' }));
+  }
+  return [];
 }
 
 function computeSetVolume(setItem) {
@@ -56,10 +62,16 @@ function getSessionsForWindow(history = [], window = '7d') {
 
 function getProgramExercises(activePlan) {
   const days = Array.isArray(activePlan?.days) ? activePlan.days : [];
-  return days.flatMap((day) => {
+  const result = [];
+  days.forEach((day) => {
     const exercises = Array.isArray(day?.exercises) ? day.exercises : [];
-    return exercises.filter((exercise) => exercise && !exercise.isWarmup);
+    exercises.forEach((exercise) => {
+      if (exercise && !exercise.isWarmup) {
+        result.push(exercise);
+      }
+    });
   });
+  return result;
 }
 
 function getRegionMapFromGroups(groupMap = {}) {
@@ -78,17 +90,19 @@ function getRegionMapFromGroups(groupMap = {}) {
 
 function buildEmptyMuscleMetrics() {
   const metrics = {};
-  Object.values(MUSCLE_GROUPS).flat().forEach((key) => {
-    metrics[key] = {
-      directSets: 0,
-      effectiveSets: 0,
-      frequency: 0,
-      fatigue: 0,
-      freshness: 1,
-      status: 'fresh',
-      confidenceSum: 0,
-      hitCount: 0,
-    };
+  Object.values(MUSCLE_GROUPS).forEach((muscles) => {
+    (muscles || []).forEach((key) => {
+      metrics[key] = {
+        directSets: 0,
+        effectiveSets: 0,
+        frequency: 0,
+        fatigue: 0,
+        freshness: 1,
+        status: 'fresh',
+        confidenceSum: 0,
+        hitCount: 0,
+      };
+    });
   });
   return metrics;
 }
@@ -140,29 +154,31 @@ export function computeMuscleAnalytics({
   const sessionHits = {};
 
   const accumulateExercise = (exercise, sessionDate, sessionKey) => {
-    const reference = resolveExerciseReference(exercise, lookup);
-    const contribution = buildExerciseContribution(reference, lookup.profileCatalog);
+    const safeExercise = exercise || {};
+    const reference = resolveExerciseReference(safeExercise, lookup);
+    const contribution = buildExerciseContribution(reference || safeExercise, lookup.profileCatalog) || {};
     const workingSets = getWorkingSets(exercise);
-    const workingSetCount = typeof exercise?.sets === 'number' && !Array.isArray(exercise?.sets)
-      ? Number(exercise.sets || 0)
+    const workingSetCount = typeof safeExercise?.sets === 'number' && !Array.isArray(safeExercise?.sets)
+      ? Number(safeExercise.sets || 0)
       : workingSets.length;
     if (!workingSetCount) return;
 
     totalWorkingSets += workingSetCount;
-    if (Array.isArray(exercise?.sets)) {
-      totalVolumeKg += exercise.sets.reduce((sum, setItem) => sum + computeSetVolume(setItem), 0);
+    if (Array.isArray(safeExercise?.sets)) {
+      totalVolumeKg += safeExercise.sets.reduce((sum, setItem) => sum + computeSetVolume(setItem), 0);
     }
 
     const ageHours = sessionDate ? (Date.now() - new Date(sessionDate).getTime()) / 3600000 : 0;
     const decay = Math.exp(-0.03 * Math.max(0, ageHours));
 
-    Object.entries(contribution.contributions || {}).forEach(([muscleKey, weight]) => {
+    const contributionMap = contribution?.contributions || {};
+    Object.entries(contributionMap).forEach(([muscleKey, weight]) => {
       if (!muscleMetrics[muscleKey]) return;
       muscleMetrics[muscleKey].effectiveSets += workingSetCount * weight;
-      muscleMetrics[muscleKey].confidenceSum += contribution.confidence;
+      muscleMetrics[muscleKey].confidenceSum += Number(contribution?.confidence || 0);
       muscleMetrics[muscleKey].hitCount += 1;
       muscleMetrics[muscleKey].fatigue += workingSetCount * weight * decay;
-      if ((contribution.primaryMuscles || []).includes(muscleKey)) {
+      if (Array.isArray(contribution?.primaryMuscles) && contribution.primaryMuscles.includes(muscleKey)) {
         muscleMetrics[muscleKey].directSets += workingSetCount;
       }
       sessionHits[sessionKey] = sessionHits[sessionKey] || {};
@@ -194,13 +210,24 @@ export function computeMuscleAnalytics({
     metric.confidence = metric.hitCount ? metric.confidenceSum / metric.hitCount : 0;
   });
 
-  const effectiveByMuscle = Object.fromEntries(Object.entries(muscleMetrics).map(([key, value]) => [key, value.effectiveSets]));
+  const effectiveByMuscle = {};
+  Object.entries(muscleMetrics).forEach(([key, value]) => {
+    effectiveByMuscle[key] = value.effectiveSets;
+  });
   const groups = aggregateByGroups(effectiveByMuscle);
   const readiness = finalizeGroupReadiness(muscleMetrics);
+  const groupValues = Object.values(groups);
+  const maxGroupValue = groupValues.length ? Math.max(...groupValues) : 1;
   const heatmap = getRegionMapFromGroups(
     window === 'program'
-      ? Object.fromEntries(Object.entries(groups).map(([key, value]) => [key, value / Math.max(1, Math.max(...Object.values(groups)))]))
-      : Object.fromEntries(Object.entries(readiness).map(([key, value]) => [key, 1 - value]))
+      ? Object.keys(groups).reduce((acc, key) => {
+          acc[key] = groups[key] / Math.max(1, maxGroupValue);
+          return acc;
+        }, {})
+      : Object.keys(readiness).reduce((acc, key) => {
+          acc[key] = 1 - readiness[key];
+          return acc;
+        }, {})
   );
   const imbalances = buildImbalanceInsights(muscleMetrics, groups);
 

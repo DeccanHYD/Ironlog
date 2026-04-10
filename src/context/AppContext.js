@@ -29,7 +29,7 @@ import {
   setBackupDirtyFlag,
 } from '../services/backupService';
 import { DEFAULT_BACKUP_CONFIG, DEFAULT_BACKUP_STATUS, DEFAULT_NOTIFICATION_SETTINGS } from '../services/backupConstants';
-import { connectGoogleDrive, disconnectGoogleDrive, getDriveConnectionStatus } from '../services/googleDriveService';
+import { connectGoogleDrive, disconnectGoogleDrive, getDriveConnectionStatus, setDriveBackupFolder, setDriveSyncMode } from '../services/googleDriveService';
 import { cancelBackupJob, scheduleBackupJob } from '../services/BackupScheduler';
 import {
   SQLITE_MIGRATION_MARKER_KEY,
@@ -192,6 +192,11 @@ export function AppContextProvider({ children }) {
       driveLinked: drive.linked,
       driveConfigured: drive.configured,
       driveEmail: drive.email || null,
+      driveRedirectUri: drive.redirectUri || null,
+      driveConfigMessage: drive.reason || null,
+      driveFolderId: drive.folderId || null,
+      driveFolderName: drive.folderName || null,
+      driveMode: drive.mode || 'appdata',
     };
     setBackupConfigState(config);
     setBackupStatusState(nextStatus);
@@ -541,8 +546,20 @@ export function AppContextProvider({ children }) {
     await refreshBackupState();
   };
 
-  const linkDriveBackup = async () => {
-    const result = await connectGoogleDrive();
+  const linkDriveBackup = async (options = {}) => {
+    const result = await connectGoogleDrive(options);
+    await refreshBackupState();
+    return result;
+  };
+
+  const updateDriveBackupFolder = async (folderName) => {
+    const result = await setDriveBackupFolder(folderName);
+    await refreshBackupState();
+    return result;
+  };
+
+  const updateDriveSyncMode = async (mode) => {
+    const result = await setDriveSyncMode(mode);
     await refreshBackupState();
     return result;
   };
@@ -610,7 +627,7 @@ export function AppContextProvider({ children }) {
       saveGymProfiles, setActiveGymProfileId,
       getAllData, restoreData, reloadFromStorage,
       refreshBackupState, updateBackupPreferences, updateNotificationPreferences,
-      setupBackupPassphrase, runManualBackup, linkDriveBackup, unlinkDriveBackup,
+      setupBackupPassphrase, runManualBackup, linkDriveBackup, unlinkDriveBackup, updateDriveBackupFolder, updateDriveSyncMode,
       isHeavy: (name) => HEAVY.has(name),
     }}>
       {children}

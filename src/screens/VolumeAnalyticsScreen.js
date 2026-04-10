@@ -6,6 +6,7 @@ import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
 import { AppContext } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
+import useDeferredScreenReady from '../hooks/useDeferredScreenReady';
 import { EXERCISES } from '../data/exerciseLibrary';
 import { getExerciseIndex } from '../services/ExerciseLibraryService';
 import { computeMuscleAnalytics } from '../domain/intelligence/trainingAnalyticsEngine';
@@ -128,6 +129,15 @@ const VOLUME_EQUIVALENTS = [
   { threshold: 30000, item: 'a city bus' },
   { threshold: 50000, item: 'a space shuttle' },
 ];
+
+const EMPTY_ANALYTICS = Object.freeze({
+  muscles: {},
+  groups: {},
+  readiness: {},
+  totalWorkingSets: 0,
+  totalVolumeKg: 0,
+  imbalances: [],
+});
 
 function normalizeNameKey(value) {
   return String(value || '')
@@ -398,17 +408,23 @@ function isWithinDays(sessionDate, days) {
 export default function VolumeAnalyticsScreen() {
   const { history, plans, settings } = useContext(AppContext);
   const colors = useTheme();
+  const analyticsReady = useDeferredScreenReady({ minDelayMs: 24 });
   const analyticsShareRef = useRef(null);
   const [windowKey, setWindowKey] = useState('current_week');
   const [shareStatus, setShareStatus] = useState('');
   const [libraryIndex, setLibraryIndex] = useState(EXERCISES);
   const activePlan = plans[0];
+  const safePlanDays = useMemo(
+    () => (Array.isArray(activePlan?.days) ? activePlan.days : []),
+    [activePlan]
+  );
   const programHasExercises = useMemo(() => {
-    if (!Array.isArray(activePlan?.days)) return false;
-    return activePlan.days.some((day) => Array.isArray(day?.exercises) && day.exercises.length > 0);
-  }, [activePlan]);
+    return safePlanDays.some((day) => Array.isArray(day?.exercises) && day.exercises.length > 0);
+  }, [safePlanDays]);
+  const effectiveWindow = windowKey === 'program' && !programHasExercises ? '7d' : windowKey;
 
   useEffect(() => {
+    if (!analyticsReady) return undefined;
     let mounted = true;
     getExerciseIndex()
       .then((index) => {
@@ -421,7 +437,7 @@ export default function VolumeAnalyticsScreen() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [analyticsReady]);
 
   const exerciseLookup = useMemo(() => {
     const byId = {};
@@ -435,21 +451,22 @@ export default function VolumeAnalyticsScreen() {
   }, [libraryIndex]);
 
   const workoutCount = useMemo(() => {
-    if (windowKey === 'program') return activePlan?.days?.length || 0;
+    if (effectiveWindow === 'program') return safePlanDays.length;
     if (windowKey === '30d') return history.filter((session) => !session?.isDeload && isWithinDays(session.date, 30)).length;
     if (windowKey === '7d') return history.filter((session) => !session?.isDeload && isWithinDays(session.date, 7)).length;
     const monday = getMondayOfWeek(new Date());
     return history.filter((session) => !session?.isDeload && isSameWeek(session.date, monday)).length;
-  }, [activePlan, history, windowKey]);
+  }, [effectiveWindow, history, safePlanDays.length, windowKey]);
 
   const analytics = useMemo(() => {
+    if (!analyticsReady) return EMPTY_ANALYTICS;
     return computeMuscleAnalytics({
       history,
       exerciseIndex: exerciseLookup.entries,
       activePlan,
-      window: windowKey,
+      window: effectiveWindow,
     });
-  }, [activePlan, exerciseLookup.entries, history, windowKey]);
+  }, [activePlan, analyticsReady, effectiveWindow, exerciseLookup.entries, history]);
 
   useEffect(() => {
     if (windowKey === 'program' && !programHasExercises) {
@@ -479,21 +496,23 @@ export default function VolumeAnalyticsScreen() {
   const barWidth = barCount > 0 ? Math.max(18, Math.min(40, (CHART_WIDTH - BAR_PAD * 2) / barCount - BAR_PAD)) : 30;
   const barSpacing = barCount > 0 ? (CHART_WIDTH - BAR_PAD * 2 - barWidth * barCount) / Math.max(barCount - 1, 1) : 0;
   const windowLabel = useMemo(() => {
-    if (windowKey === 'program') return activePlan?.name ? `${activePlan.name} · program view` : 'Program view';
+    if (effectiveWindow === 'program') return activePlan?.name ? `${activePlan.name} · program view` : 'Program view';
     if (windowKey === '30d') return 'Last 30 days';
     if (windowKey === '7d') return 'Last 7 days';
     return 'Current week';
-  }, [activePlan?.name, windowKey]);
+  }, [activePlan?.name, effectiveWindow, windowKey]);
   const compactNumbers = settings?.compactAnalyticsNumbers !== false;
   const shareFunLine = useMemo(() => {
+    if (!analyticsReady) return 'Preparing muscle analytics...';
     if (analytics.totalVolumeKg <= 0) return 'Log training to unlock your volume interpretation.';
     return buildVolumeInterpretationSentence({
       totalKg: analytics.totalVolumeKg,
-      baselineLabel: windowKey === 'program' ? 'your current program target' : 'your recent baseline',
+      baselineLabel: effectiveWindow === 'program' ? 'your current program target' : 'your recent baseline',
     });
-  }, [analytics.totalVolumeKg, windowKey]);
+  }, [analytics.totalVolumeKg, analyticsReady, effectiveWindow]);
 
   const handleShare = async () => {
+    if (!analyticsReady) return;
     try {
       setShareStatus('');
       const uri = await captureRef(analyticsShareRef, { format: 'png', quality: 1 });
@@ -519,7 +538,12 @@ export default function VolumeAnalyticsScreen() {
           <Text style={[s.currentBadge, { color: colors.accent }]}>{windowLabel}</Text>
         </View>
 
-        <TouchableOpacity onPress={handleShare} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} style={{ marginRight: 8 }}>
+        <TouchableOpacity
+          onPress={handleShare}
+          disabled={!analyticsReady}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={{ marginRight: 8, opacity: analyticsReady ? 1 : 0.45 }}
+        >
           <Ionicons name="share-social-outline" size={20} color={colors.accent} />
         </TouchableOpacity>
       </View>
@@ -549,6 +573,7 @@ export default function VolumeAnalyticsScreen() {
       </ScrollView>
 
       {shareStatus ? <Text style={[s.shareStatus, { color: colors.muted }]}>{shareStatus}</Text> : null}
+      {!analyticsReady ? <Text style={[s.shareStatus, { color: colors.muted }]}>Preparing analytics after the transition settles.</Text> : null}
 
       <View ref={analyticsShareRef} collapsable={false}>
         <View style={[s.shareHeaderCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
@@ -559,8 +584,8 @@ export default function VolumeAnalyticsScreen() {
         </View>
 
         <View style={[s.statsRow, { borderColor: colors.faint }]}>
-          {[
-            { val: workoutCount, label: windowKey === 'program' ? 'Plan Days' : 'Workouts' },
+            {[
+            { val: workoutCount, label: effectiveWindow === 'program' ? 'Plan Days' : 'Workouts' },
             { val: Math.round(analytics.totalWorkingSets), label: 'Direct Sets' },
             { val: sortedMuscles.length, label: 'Muscles Hit' },
             { val: formatVolumeKg(analytics.totalVolumeKg), label: 'Volume' },

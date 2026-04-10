@@ -197,10 +197,11 @@ function getFallbackDisplayGroup(exercise, profile) {
 }
 
 export function buildExerciseContribution(exercise, profileCatalog = null) {
-  const profile = resolveExerciseProfile(exercise, profileCatalog);
-  const anchor = getAnchorOverride(exercise);
+  const safeExercise = exercise || {};
+  const profile = resolveExerciseProfile(safeExercise, profileCatalog);
+  const anchor = getAnchorOverride(safeExercise);
   const template = normalizeContributionMap(FAMILY_TEMPLATES[profile.family] || {});
-  const library = buildLibraryMap(exercise);
+  const library = buildLibraryMap(safeExercise);
 
   let contributions = {};
   let source = 'fallback';
@@ -226,14 +227,14 @@ export function buildExerciseContribution(exercise, profileCatalog = null) {
 
   const sorted = Object.entries(contributions).sort((a, b) => b[1] - a[1]);
   return {
-    exerciseId: exercise.exerciseId || exercise.id || exercise.name,
-    exerciseName: exercise.name || 'Unknown Exercise',
+    exerciseId: safeExercise.exerciseId || safeExercise.id || safeExercise.name || 'unknown_exercise',
+    exerciseName: safeExercise.name || 'Unknown Exercise',
     profile,
     source,
     confidence,
     contributions,
     primaryMuscles: sorted.filter(([, value]) => value >= 0.16).map(([key]) => key),
-    displayFallbackGroup: confidence < 0.55 ? getFallbackDisplayGroup(exercise, profile) : null,
+    displayFallbackGroup: confidence < 0.55 ? getFallbackDisplayGroup(safeExercise, profile) : null,
   };
 }
 
@@ -241,6 +242,7 @@ export function buildExerciseContributionCatalog(exercises = [], profileCatalog 
   const byId = {};
   const byName = {};
   exercises.forEach((exercise) => {
+    if (!exercise) return;
     const result = buildExerciseContribution(exercise, profileCatalog);
     byId[result.exerciseId] = result;
     byName[normalizeText(result.exerciseName)] = result;
@@ -259,6 +261,7 @@ export function resolveExerciseContribution(exercise, contributionCatalog = null
 export function buildExerciseMap(exercises = []) {
   const result = {};
   exercises.forEach((exercise) => {
+    if (!exercise) return;
     const profile = buildExerciseProfile(exercise);
     const contribution = buildExerciseContribution(exercise);
     result[exercise.name] = {

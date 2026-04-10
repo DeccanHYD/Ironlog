@@ -10,12 +10,17 @@ import {
 
 WebBrowser.maybeCompleteAuthSession();
 
+const DEFAULT_DRIVE_FOLDER_NAME = 'IRONLOG Backups';
+const DRIVE_MODE_FOLDER = 'folder';
+const DRIVE_MODE_APPDATA = 'appdata';
+
 function getGoogleClientId() {
-  return (
-    process.env.EXPO_PUBLIC_GOOGLE_DRIVE_ANDROID_CLIENT_ID ||
-    process.env.EXPO_PUBLIC_GOOGLE_DRIVE_WEB_CLIENT_ID ||
-    ''
-  );
+  const candidates = [
+    process.env.EXPO_PUBLIC_GOOGLE_DRIVE_ANDROID_CLIENT_ID,
+    process.env.EXPO_PUBLIC_GOOGLE_DRIVE_CLIENT_ID,
+    process.env.EXPO_PUBLIC_GOOGLE_DRIVE_WEB_CLIENT_ID,
+  ];
+  return candidates.find((value) => String(value || '').trim()) || '';
 }
 
 function getRedirectUri() {
@@ -23,6 +28,10 @@ function getRedirectUri() {
     scheme: 'ironlog',
     path: 'oauth',
   });
+}
+
+function escapeDriveQueryLiteral(value) {
+  return String(value || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
 async function getStoredDriveToken() {
@@ -72,13 +81,17 @@ async function getFreshToken() {
   return new TokenResponse(nextToken);
 }
 
-async function authorizedFetch(url, options = {}) {
-  const token = await getFreshToken();
-  if (!token?.accessToken) {
+async function authorizedFetch(url, options = {}, accessTokenOverride = null) {
+  let accessToken = accessTokenOverride;
+  if (!accessToken) {
+    const token = await getFreshToken();
+    accessToken = token?.accessToken;
+  }
+  if (!accessToken) {
     throw new Error('Google Drive is not connected.');
   }
   const headers = {
-    Authorization: `Bearer ${token.accessToken}`,
+    Authorization: `Bearer ${accessToken}`,
     ...(options.headers || {}),
   };
   const response = await fetch(url, { ...options, headers });
@@ -87,6 +100,51 @@ async function authorizedFetch(url, options = {}) {
     throw new Error(text || `Drive request failed with ${response.status}`);
   }
   return response;
+}
+
+async function findFolderByName(accessToken, folderName) {
+  const safeName = escapeDriveQueryLiteral(folderName);
+  const q = encodeURIComponent(
+    `mimeType='application/vnd.google-apps.folder' and trashed=false and 'root' in parents and name='${safeName}'`
+  );
+  const response = await authorizedFetch(
+    `https://www.googleapis.com/drive/v3/files?fields=files(id,name,createdTime)&q=${q}`,
+    {},
+    accessToken
+  );
+  const payload = await response.json();
+  const folders = Array.isArray(payload?.files) ? payload.files : [];
+  return folders[0] || null;
+}
+
+async function createFolder(accessToken, folderName) {
+  const response = await authorizedFetch(
+    'https://www.googleapis.com/drive/v3/files?fields=id,name,createdTime',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: folderName,
+        mimeType: 'application/vnd.google-apps.folder',
+        parents: ['root'],
+      }),
+    },
+    accessToken
+  );
+  return response.json();
+}
+
+async function ensureBackupFolder(accessToken, folderName) {
+  const requestedName = String(folderName || '').trim() || DEFAULT_DRIVE_FOLDER_NAME;
+  const existing = await findFolderByName(accessToken, requestedName);
+  if (existing?.id) {
+    return { id: existing.id, name: existing.name || requestedName };
+  }
+  const created = await createFolder(accessToken, requestedName);
+  if (!created?.id) throw new Error('Could not create Drive backup folder.');
+  return { id: created.id, name: created.name || requestedName };
 }
 
 async function pruneRemoteBackups(retentionCount) {
@@ -105,6 +163,8 @@ export function getDriveConfiguration() {
     configured: !!clientId,
     clientId,
     redirectUri: getRedirectUri(),
+    expectedEnv:
+      'EXPO_PUBLIC_GOOGLE_DRIVE_ANDROID_CLIENT_ID (or EXPO_PUBLIC_GOOGLE_DRIVE_CLIENT_ID / EXPO_PUBLIC_GOOGLE_DRIVE_WEB_CLIENT_ID)',
   };
 }
 
@@ -124,10 +184,14 @@ export async function getDriveConnectionStatus() {
     email: token?.email || null,
     connectedAt: token?.connectedAt || null,
     redirectUri: config.redirectUri,
+    folderId: token?.driveFolderId || null,
+    folderName: token?.driveFolderName || null,
+    mode: token?.driveMode || (token?.driveFolderId ? DRIVE_MODE_FOLDER : DRIVE_MODE_APPDATA),
+    reason: config.configured ? null : `Google Drive OAuth client missing: ${config.expectedEnv}.`,
   };
 }
 
-export async function connectGoogleDrive() {
+export async function connectGoogleDrive(options = {}) {
   const { configured, clientId, redirectUri } = getDriveConfiguration();
   if (!configured) {
     throw new Error('Google Drive backup is not configured on this build. Set EXPO_PUBLIC_GOOGLE_DRIVE_ANDROID_CLIENT_ID first.');
@@ -169,6 +233,12 @@ export async function connectGoogleDrive() {
     // Ignore user-info failures; Drive backup can still work.
   }
 
+  const mode = options.mode === DRIVE_MODE_APPDATA ? DRIVE_MODE_APPDATA : DRIVE_MODE_FOLDER;
+  let selectedFolder = null;
+  if (mode === DRIVE_MODE_FOLDER) {
+    selectedFolder = await ensureBackupFolder(tokenResponse.accessToken, options.folderName || DEFAULT_DRIVE_FOLDER_NAME);
+  }
+
   const nextToken = {
     ...tokenResponse.getRequestConfig(),
     accessToken: tokenResponse.accessToken,
@@ -178,13 +248,61 @@ export async function connectGoogleDrive() {
     idToken: tokenResponse.idToken || null,
     email,
     connectedAt: new Date().toISOString(),
+    driveFolderId: selectedFolder?.id || null,
+    driveFolderName: selectedFolder?.name || null,
+    driveMode: mode,
   };
   await saveStoredDriveToken(nextToken);
   return {
     connected: true,
     email,
     connectedAt: nextToken.connectedAt,
+    folderId: selectedFolder?.id || null,
+    folderName: selectedFolder?.name || null,
+    mode,
   };
+}
+
+export async function setDriveBackupFolder(folderName) {
+  const normalized = String(folderName || '').trim();
+  if (!normalized) throw new Error('Folder name cannot be empty.');
+  const fresh = await getFreshToken();
+  if (!fresh?.accessToken) throw new Error('Google Drive is not connected.');
+  const selectedFolder = await ensureBackupFolder(fresh.accessToken, normalized);
+  const token = await getStoredDriveToken();
+  const nextToken = {
+    ...(token || {}),
+    ...(fresh.getRequestConfig ? fresh.getRequestConfig() : {}),
+    accessToken: fresh.accessToken,
+    refreshToken: fresh.refreshToken || token?.refreshToken || null,
+    driveFolderId: selectedFolder.id,
+    driveFolderName: selectedFolder.name,
+    driveMode: DRIVE_MODE_FOLDER,
+  };
+  await saveStoredDriveToken(nextToken);
+  return selectedFolder;
+}
+
+export async function setDriveSyncMode(mode) {
+  const normalized = mode === DRIVE_MODE_APPDATA ? DRIVE_MODE_APPDATA : DRIVE_MODE_FOLDER;
+  const token = await getStoredDriveToken();
+  if (!token?.accessToken) throw new Error('Google Drive is not connected.');
+  let folderId = token.driveFolderId || null;
+  let folderName = token.driveFolderName || null;
+  if (normalized === DRIVE_MODE_FOLDER && !folderId) {
+    const fresh = await getFreshToken();
+    const selected = await ensureBackupFolder(fresh?.accessToken, DEFAULT_DRIVE_FOLDER_NAME);
+    folderId = selected.id;
+    folderName = selected.name;
+  }
+  const nextToken = {
+    ...token,
+    driveMode: normalized,
+    driveFolderId: normalized === DRIVE_MODE_FOLDER ? folderId : null,
+    driveFolderName: normalized === DRIVE_MODE_FOLDER ? folderName : null,
+  };
+  await saveStoredDriveToken(nextToken);
+  return { mode: normalized, folderId: nextToken.driveFolderId || null, folderName: nextToken.driveFolderName || null };
 }
 
 export async function disconnectGoogleDrive() {
@@ -203,9 +321,19 @@ export async function disconnectGoogleDrive() {
 }
 
 export async function uploadSnapshotToDrive(record, container, options = {}) {
+  const token = await getStoredDriveToken();
+  const mode = token?.driveMode || (token?.driveFolderId ? DRIVE_MODE_FOLDER : DRIVE_MODE_APPDATA);
+  let folderId = token?.driveFolderId || null;
+  let folderName = token?.driveFolderName || DEFAULT_DRIVE_FOLDER_NAME;
+  if (mode === DRIVE_MODE_FOLDER && !folderId) {
+    const selected = await setDriveBackupFolder(folderName);
+    folderId = selected.id;
+    folderName = selected.name;
+  }
+
   const metadata = {
     name: `${record.snapshotId}.ironlog.json`,
-    parents: ['appDataFolder'],
+    ...(mode === DRIVE_MODE_FOLDER ? { parents: [folderId] } : { parents: ['appDataFolder'] }),
     mimeType: 'application/json',
     appProperties: {
       snapshotId: record.snapshotId,
@@ -227,7 +355,7 @@ export async function uploadSnapshotToDrive(record, container, options = {}) {
     `--${boundary}--`,
   ].join('\r\n');
 
-  const response = await authorizedFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,createdTime', {
+  const response = await authorizedFetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,createdTime,parents', {
     method: 'POST',
     headers: {
       'Content-Type': `multipart/related; boundary=${boundary}`,
@@ -243,13 +371,28 @@ export async function uploadSnapshotToDrive(record, container, options = {}) {
     remoteFileId: uploaded.id,
     remote: true,
     syncedAt: new Date().toISOString(),
+    driveFolderId: folderId,
+    driveFolderName: folderName,
+    driveMode: mode,
   };
 }
 
 export async function listDriveSnapshots() {
-  const response = await authorizedFetch(
-    "https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name,createdTime,appProperties)&q=trashed=false"
-  );
+  const token = await getStoredDriveToken();
+  const mode = token?.driveMode || (token?.driveFolderId ? DRIVE_MODE_FOLDER : DRIVE_MODE_APPDATA);
+  let response;
+  if (mode === DRIVE_MODE_FOLDER) {
+    const folderId = token?.driveFolderId;
+    if (!folderId) return [];
+    const q = encodeURIComponent(`trashed=false and '${escapeDriveQueryLiteral(folderId)}' in parents`);
+    response = await authorizedFetch(
+      `https://www.googleapis.com/drive/v3/files?fields=files(id,name,createdTime,appProperties,parents)&q=${q}`
+    );
+  } else {
+    response = await authorizedFetch(
+      "https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name,createdTime,appProperties)&q=trashed=false"
+    );
+  }
   const payload = await response.json();
   return (payload.files || [])
     .map((file) => ({
@@ -263,6 +406,9 @@ export async function listDriveSnapshots() {
       isRollback: file.appProperties?.isRollback === '1',
       dataHash: file.appProperties?.dataHash || null,
       localUri: null,
+      driveFolderId: token?.driveFolderId || null,
+      driveFolderName: token?.driveFolderName || null,
+      driveMode: mode,
     }))
     .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
 }

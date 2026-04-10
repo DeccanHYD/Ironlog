@@ -1,12 +1,12 @@
 import React, { useContext, useState, useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal, Image } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { ActivityIndicator, View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppContext } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
+import useDeferredScreenReady from '../hooks/useDeferredScreenReady';
 import RecoveryHeatmap from '../components/RecoveryHeatmap';
 import { computeStimulusFatigue, analyzeVolume, buildHomeProgramIntelligence } from '../utils/intelligenceEngine';
 import { decayFatigueHourly, computeReadiness, getGroupReadiness } from '../utils/recoveryModel';
@@ -163,12 +163,14 @@ export default function HomeScreen({ navigation }) {
     manualRecoveryInput, engagementSnapshot, milestoneUnlocks,
   } = useContext(AppContext);
   const colors = useTheme();
+  const insightsReady = useDeferredScreenReady({ minDelayMs: 16 });
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [libraryIndex, setLibraryIndex] = useState([]);
   const [weeklyShareNode, setWeeklyShareNode] = useState(null);
   const [weeklyShareStatus, setWeeklyShareStatus] = useState('');
 
   useEffect(() => {
+    if (!insightsReady) return undefined;
     let mounted = true;
     getExerciseIndex()
       .then((index) => {
@@ -179,7 +181,7 @@ export default function HomeScreen({ navigation }) {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [insightsReady]);
 
   useEffect(() => {
     // Show onboarding if not complete AND user has no workout history (fresh start)
@@ -202,8 +204,10 @@ export default function HomeScreen({ navigation }) {
   const latestBW = bodyWeight[0];
 
   const activePlan = plans[0];
+  const activePlanDays = Array.isArray(activePlan?.days) ? activePlan.days : [];
 
   const { recommendation, volumeStatus, groupReadiness, readiness, muscleAnalytics } = useMemo(() => {
+    if (!insightsReady) return { recommendation: null, volumeStatus: {}, groupReadiness: {}, readiness: {}, muscleAnalytics: null };
     if (!history || history.length === 0) return { recommendation: null, volumeStatus: {}, groupReadiness: {}, readiness: {}, muscleAnalytics: null };
     
     const totalFatigue = {};
@@ -283,14 +287,15 @@ export default function HomeScreen({ navigation }) {
       readiness: r,
       muscleAnalytics: analytics,
     };
-  }, [activePlan, bodyWeight, history, exerciseMap, libraryIndex]);
+  }, [activePlan, bodyWeight, history, exerciseMap, insightsReady, libraryIndex]);
 
   const nextDay = useMemo(() => {
-    if (!activePlan?.days?.length) return null;
-    return activePlan.days.find((day) => !hitDays.has(day.id)) || activePlan.days[0];
-  }, [activePlan, hitDays]);
+    if (!activePlanDays.length) return null;
+    return activePlanDays.find((day) => !hitDays.has(day.id)) || activePlanDays[0];
+  }, [activePlanDays, hitDays]);
 
   const nextTargets = useMemo(() => {
+    if (!insightsReady) return [];
     if (!nextDay) return [];
     return buildAdaptiveDayTargets({
       day: nextDay,
@@ -299,19 +304,31 @@ export default function HomeScreen({ navigation }) {
     })
       .map((suggestion) => ({ exercise: { name: suggestion.exerciseName }, suggestion }))
       .slice(0, 3);
-  }, [activePlan?.goalMode, history, nextDay, settings?.goalMode]);
+  }, [activePlan?.goalMode, history, insightsReady, nextDay, settings?.goalMode]);
 
-  const programInsights = useMemo(() => buildProgramInsights({
-    activePlan,
-    history,
-    goalMode: activePlan?.goalMode || settings?.goalMode || 'hypertrophy',
-  }), [activePlan, history, settings?.goalMode]);
+  const programInsights = useMemo(() => {
+    if (!insightsReady) return null;
+    return buildProgramInsights({
+      activePlan,
+      history,
+      goalMode: activePlan?.goalMode || settings?.goalMode || 'hypertrophy',
+    });
+  }, [activePlan, history, insightsReady, settings?.goalMode]);
 
-  const consistencyMetrics = useMemo(() => computeConsistencyMetrics({
-    history,
-    activePlan,
-    bodyWeight,
-  }), [activePlan, bodyWeight, history]);
+  const consistencyMetrics = useMemo(() => {
+    if (!insightsReady) {
+      return {
+        workoutsPerWeek: 0,
+        adherenceToProgram: 0,
+        exerciseRepeatConsistency: 0,
+      };
+    }
+    return computeConsistencyMetrics({
+      history,
+      activePlan,
+      bodyWeight,
+    });
+  }, [activePlan, bodyWeight, history, insightsReady]);
 
   const plateauCallout = useMemo(
     () => nextTargets.find((item) => item.suggestion?.plateauSignal)?.suggestion?.plateauSignal || null,
@@ -321,6 +338,11 @@ export default function HomeScreen({ navigation }) {
   const deloadCallout = useMemo(
     () => nextTargets.find((item) => item.suggestion?.deloadSignal)?.suggestion?.deloadSignal || null,
     [nextTargets]
+  );
+
+  const recoveryScore = useMemo(
+    () => computeRecoveryScore({ readiness: groupReadiness, manualInput: manualRecoveryInput }),
+    [groupReadiness, manualRecoveryInput]
   );
 
   const openRecommendedTemplate = () => {
@@ -362,6 +384,15 @@ export default function HomeScreen({ navigation }) {
       </View>
 
       {/* TRAINING INTELLIGENCE */}
+      {!insightsReady && history?.length ? (
+        <View style={[s.intelCard, { backgroundColor: colors.card, borderColor: colors.cardBorder, flexDirection: 'row', alignItems: 'center', gap: 10 }]}>
+          <ActivityIndicator size="small" color={colors.accent} />
+          <View style={{ flex: 1 }}>
+            <Text style={[s.intelSup, { color: colors.muted, marginBottom: 2 }]}>PREPARING LIVE INSIGHTS</Text>
+            <Text style={[s.intelReason, { color: colors.subtext, marginTop: 0 }]}>Loading progression, recovery, and muscle analytics after the transition settles.</Text>
+          </View>
+        </View>
+      ) : null}
       {(recommendation || nextTargets.length > 0 || muscleAnalytics?.focusInsight) && (
         <TouchableOpacity
           activeOpacity={recommendation?.recommendedTemplateId ? 0.82 : 1}
@@ -476,11 +507,11 @@ export default function HomeScreen({ navigation }) {
       </View>
 
       {/* Volume chips — only show if active plan has days */}
-      {activePlan && activePlan.days.length > 0 && (
+      {activePlanDays.length > 0 && (
         <View style={[s.chipsRow, { borderBottomColor: colors.faint }]}>
           <Text style={[s.chipsLabel, { color: colors.muted }]}>THIS WEEK</Text>
           <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-            {activePlan.days.map(day => {
+            {activePlanDays.map(day => {
               const hit = hitDays.has(day.id);
               return (
                 <View key={day.id} style={[s.chip, { borderColor: hit ? colors.accent : colors.faint, backgroundColor: hit ? colors.accentSoft : 'transparent' }]}>
@@ -503,21 +534,16 @@ export default function HomeScreen({ navigation }) {
 
       {/* Recovery heatmap */}
       <RecoveryHeatmap navigation={navigation} groupReadiness={groupReadiness} />
-      {(() => {
-        const recoveryScore = computeRecoveryScore({ readiness: groupReadiness, manualInput: manualRecoveryInput });
-        return (
-          <TouchableOpacity
-            style={[s.intelCard, { backgroundColor: colors.card, borderColor: colors.cardBorder, marginTop: 10 }]}
-            onPress={() => navigation.navigate('RecoveryMap')}
-          >
-            <Text style={[s.intelSup, { color: colors.muted }]}>READINESS</Text>
-            <Text style={[s.intelMain, { color: recoveryScore.state === 'fatigued' ? '#FF8E8E' : recoveryScore.state === 'recovering' ? '#FFD166' : '#6FE0A4' }]}>
-              Recovery {recoveryScore.score}
-            </Text>
-            <Text style={[s.intelReason, { color: colors.subtext }]}>{recoveryScore.explanation}</Text>
-          </TouchableOpacity>
-        );
-      })()}
+      <TouchableOpacity
+        style={[s.intelCard, { backgroundColor: colors.card, borderColor: colors.cardBorder, marginTop: 10 }]}
+        onPress={() => navigation.navigate('RecoveryMap')}
+      >
+        <Text style={[s.intelSup, { color: colors.muted }]}>READINESS</Text>
+        <Text style={[s.intelMain, { color: recoveryScore.state === 'fatigued' ? '#FF8E8E' : recoveryScore.state === 'recovering' ? '#FFD166' : '#6FE0A4' }]}>
+          Recovery {recoveryScore.score}
+        </Text>
+        <Text style={[s.intelReason, { color: colors.subtext }]}>{recoveryScore.explanation}</Text>
+      </TouchableOpacity>
 
       {Object.keys(milestoneUnlocks || {}).length ? (
         <View style={{ paddingHorizontal: 16, paddingTop: 6 }}>
@@ -535,7 +561,7 @@ export default function HomeScreen({ navigation }) {
       {/* Day cards */}
       <View style={s.daysSection}>
         <Text style={[s.daysLabel, { color: colors.muted }]}>SELECT WORKOUT</Text>
-        {!activePlan || activePlan.days.length === 0 ? (
+        {!activePlan || activePlanDays.length === 0 ? (
           <TouchableOpacity style={[s.emptyCard, { borderColor: colors.accent, backgroundColor: colors.accentSoft }]}
             onPress={() => navigation.navigate('Plans')}>
             <Ionicons name="add-circle-outline" size={32} color={colors.accent} />
@@ -543,11 +569,12 @@ export default function HomeScreen({ navigation }) {
             <Text style={[s.emptyHint, { color: colors.muted }]}>Tap to go to Plans and build your workout</Text>
           </TouchableOpacity>
         ) : (
-          activePlan.days.map((day, i) => {
+          activePlanDays.map((day, i) => {
             const lastDone = history.find(h => h.dayId === day.id);
             const lastDate = lastDone ? new Date(lastDone.date).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : 'never done';
             const pbKeys = Object.keys(pb).filter(k => k.startsWith(day.id + '-'));
             const hasPb = pbKeys.length > 0;
+            const dayExerciseCount = Array.isArray(day?.exercises) ? day.exercises.filter(e => !e?.isWarmup).length : 0;
             return (
               <TouchableOpacity key={day.id} style={[s.dayCard, { backgroundColor: colors.card, borderColor: colors.cardBorder, borderLeftColor: day.color }]}
                 onPress={() => navigation.navigate('ActiveWorkout', { planIndex: 0, dayIndex: i })}>
@@ -559,7 +586,7 @@ export default function HomeScreen({ navigation }) {
                       {hasPb && <View style={[s.pbBadge, { borderColor: (colors.gold || '#FFD700') + '44', backgroundColor: (colors.gold || '#FFD700') + '11' }]}><Text style={[s.pbBadgeText, { color: colors.gold || '#FFD700' }]}>PB</Text></View>}
                     </View>
                     {day.tag ? <Text style={[s.dayTag, { color: colors.subtext }]}>{day.tag}</Text> : null}
-                    <Text style={[s.dayMeta, { color: colors.muted }]}>{(day.exercises || []).filter(e => !e.isWarmup).length} exercises · {lastDate}</Text>
+                    <Text style={[s.dayMeta, { color: colors.muted }]}>{dayExerciseCount} exercises · {lastDate}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color={colors.muted} />
                 </View>

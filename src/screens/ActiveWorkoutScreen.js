@@ -18,6 +18,7 @@ import { AppContext } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 import { WorkoutProvider, useWorkout } from '../context/WorkoutContext';
 import { useActiveBanner } from '../context/ActiveWorkoutBannerContext';
+import useDeferredScreenReady from '../hooks/useDeferredScreenReady';
 import SetRow from '../components/SetRow';
 import CustomAlert from '../components/CustomAlert';
 import WorkoutShareCard from '../components/WorkoutShareCard';
@@ -328,12 +329,13 @@ function SupersetModal({ visible, currentGroup, onAssign, onClose }) {
 
 // ─── SWAP EXERCISE MODAL ──────────────────────────────────────────────────────
 
-function SwapModal({ visible, exercise, onSwap, onClose, colors }) {
+function SwapModal({ visible, exercise, onSwap, onClose, colors, mode = 'swap' }) {
   const [allExercises, setAllExercises] = useState([]);
   const [search, setSearch] = useState('');
   const defaultMuscle = getExerciseFilterSummary(exercise, 1)[0] || 'All';
   const [muscle, setMuscle] = useState(defaultMuscle);
   const [muscles, setMuscles] = useState([]);
+  const isLibraryMode = mode === 'library';
 
   useEffect(() => {
     if (!visible) return;
@@ -342,37 +344,58 @@ function SwapModal({ visible, exercise, onSwap, onClose, colors }) {
     getExerciseIndex().then(idx => {
       if (!idx) return;
       setAllExercises(idx);
-      setMuscles(buildFilterChipOptions(idx, { includeCategory: true, includeEquipment: false }));
+      setMuscles(buildFilterChipOptions(idx, {
+        includeCategory: true,
+        includeEquipment: isLibraryMode,
+      }));
     });
-  }, [visible, defaultMuscle]);
-
-  const currentEquipment = exercise?.equipment || '';
-  const filteredBase = allExercises.filter(e => {
-      const ms = matchesExerciseFilter(e, muscle, { includeCategory: true, includeEquipment: false });
-      const sr = !search || e.name.toLowerCase().includes(search.toLowerCase());
-      return ms && sr;
-    });
-  const filtered = rankSubstitutionCandidates({
-    exercise,
-    candidates: filteredBase,
-    limit: filteredBase.length || 40,
-  }).map((candidate) => ({
-    ...candidate,
-    sameEquipment: candidate.equipment === currentEquipment,
-  }));
+  }, [isLibraryMode, visible, defaultMuscle]);
 
   if (!visible) return null;
+
+  const currentEquipment = exercise?.equipment || '';
+  const filteredBase = allExercises.filter((e) => {
+    const ms = matchesExerciseFilter(e, muscle, {
+      includeCategory: true,
+      includeEquipment: isLibraryMode,
+    });
+    const sr = !search || e.name.toLowerCase().includes(search.toLowerCase());
+    return ms && sr;
+  });
+  const filtered = isLibraryMode
+    ? filteredBase
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((candidate) => ({
+          ...candidate,
+          sameEquipment: candidate.equipment === currentEquipment,
+        }))
+    : rankSubstitutionCandidates({
+        exercise,
+        candidates: filteredBase,
+        limit: filteredBase.length || 40,
+      }).map((candidate) => ({
+        ...candidate,
+        sameEquipment: candidate.equipment === currentEquipment,
+      }));
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', justifyContent: 'flex-end' }}>
         <View style={{ height: '85%', backgroundColor: colors.card, borderTopWidth: 1, borderTopColor: colors.cardBorder, padding: 20 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <Text style={{ fontSize: 14, fontWeight: '900', letterSpacing: 3, color: colors.text }}>SWAP EXERCISE</Text>
+            <Text style={{ fontSize: 14, fontWeight: '900', letterSpacing: 3, color: colors.text }}>
+              {isLibraryMode ? 'ADD FROM LIBRARY' : 'SWAP EXERCISE'}
+            </Text>
             <TouchableOpacity onPress={() => { triggerHaptic('selection').catch(() => {}); onClose(); }}>
               <Ionicons name="close" size={22} color={colors.muted} />
             </TouchableOpacity>
           </View>
+          {isLibraryMode ? (
+            <Text style={{ fontSize: 11, color: colors.muted, marginBottom: 10, lineHeight: 16 }}>
+              Browse the full exercise library, then add the movement you want to this workout.
+            </Text>
+          ) : null}
           <TextInput
             style={{ borderWidth: 1, borderColor: colors.faint, color: colors.text, padding: 12, fontSize: 15, marginBottom: 10 }}
             placeholder="Search..." placeholderTextColor={colors.muted}
@@ -394,7 +417,9 @@ function SwapModal({ visible, exercise, onSwap, onClose, colors }) {
               ))}
             </ScrollView>
           </View>
-          <Text style={{ fontSize: 10, letterSpacing: 2, color: colors.muted, marginBottom: 8 }}>{filtered.length} exercises</Text>
+          <Text style={{ fontSize: 10, letterSpacing: 2, color: colors.muted, marginBottom: 8 }}>
+            {filtered.length} exercises
+          </Text>
           <FlatList
             style={{ flex: 1 }}
             data={filtered}
@@ -408,13 +433,13 @@ function SwapModal({ visible, exercise, onSwap, onClose, colors }) {
                   <Text style={{ fontSize: 11, color: colors.muted, marginTop: 2 }} numberOfLines={1}>
                     {getExerciseFilterSummary(ex).join(', ')}{ex.equipment ? ` · ${toTitleCase(ex.equipment)}` : ''}
                   </Text>
-                  {ex.substitutionReason ? (
+                  {!isLibraryMode && ex.substitutionReason ? (
                     <Text style={{ fontSize: 10, color: colors.accent, marginTop: 2 }} numberOfLines={1}>
                       {ex.substitutionReason}
                     </Text>
                   ) : null}
                 </View>
-                <Ionicons name="swap-horizontal" size={18} color={colors.accent} />
+                <Ionicons name={isLibraryMode ? 'add-circle-outline' : 'swap-horizontal'} size={18} color={colors.accent} />
               </TouchableOpacity>
             )}
             getItemLayout={(_, i) => ({ length: 60, offset: 60 * i, index: i })}
@@ -440,6 +465,7 @@ function WorkoutContent({ plan, day, planIndex, dayIndex, navigation }) {
 
   const { history, pb, settings, addHistory, updatePb, saveExerciseNotes, isHeavy, exerciseNotes, activeGymProfile, updateSettings } = useContext(AppContext);
   const colors = useTheme();
+  const transitionReady = useDeferredScreenReady({ minDelayMs: 16, resetOnBlur: false });
   const s = makeStyles(colors);
   const { state, dispatch } = useWorkout();
   const { setBanner } = useActiveBanner();
@@ -485,6 +511,7 @@ function WorkoutContent({ plan, day, planIndex, dayIndex, navigation }) {
   const startTime = useRef(Date.now());
   const restInterval = useRef(null);
   const restTimerRef = useRef(state.restTimer);
+  const countdownHapticRef = useRef(null);
   const appStateRef = useRef(AppState.currentState);
   const copyModalShown = useRef(false);
   const [sessionReady, setSessionReady] = useState(false);
@@ -494,12 +521,18 @@ function WorkoutContent({ plan, day, planIndex, dayIndex, navigation }) {
   }, [day?.id]);
 
   useEffect(() => {
+    if (!transitionReady) return undefined;
+    let mounted = true;
     getExerciseIndex()
       .then((index) => {
+        if (!mounted) return;
         if (Array.isArray(index) && index.length > 0) setLibraryIndex(index);
       })
       .catch(() => {});
-  }, []);
+    return () => {
+      mounted = false;
+    };
+  }, [transitionReady]);
 
   useEffect(() => {
     setOrderedIndices((prev) => {
@@ -627,6 +660,7 @@ function WorkoutContent({ plan, day, planIndex, dayIndex, navigation }) {
   }, []);
 
   const progressionSuggestions = useMemo(() => {
+    if (!transitionReady) return {};
     const suggestions = {};
     workingExercises.forEach((exercise, index) => {
       const actual = state.swappedExercises[index] || exercise;
@@ -643,48 +677,78 @@ function WorkoutContent({ plan, day, planIndex, dayIndex, navigation }) {
       });
     });
     return suggestions;
-  }, [history, state.swappedExercises, workingExercises]);
+  }, [history, state.swappedExercises, transitionReady, workingExercises]);
+
+  const triggerCountdownHaptic = useCallback((remaining) => {
+    if (!Number.isFinite(remaining) || remaining < 1 || remaining > 5) {
+      countdownHapticRef.current = null;
+      return;
+    }
+    if (countdownHapticRef.current === remaining) return;
+    countdownHapticRef.current = remaining;
+
+    const eventName = {
+      5: 'countdownLightest',
+      4: 'countdownLight',
+      3: 'countdownMedium',
+      2: 'countdownHigh',
+      1: 'countdownBuzz',
+    }[remaining];
+
+    if (!eventName) return;
+    triggerHaptic(eventName, { enabled: haptic, force: true }).catch(() => {});
+  }, [haptic]);
 
   const tickRest = useCallback(() => {
     const timer = restTimerRef.current;
-    if (!timer.active || timer.paused || !timer.endTime) return;
+    if (!timer.active || timer.paused || !timer.endTime) {
+      countdownHapticRef.current = null;
+      return;
+    }
     const remaining = Math.ceil((timer.endTime - Date.now()) / 1000);
     if (remaining <= 0) {
       clearInterval(restInterval.current);
+      countdownHapticRef.current = null;
       dispatch({ type: 'SKIP_REST' });
       setDisplaySecs(0);
       triggerHaptic('timerDone', { enabled: haptic, force: true }).catch(() => {});
     } else {
+      triggerCountdownHaptic(remaining);
       setDisplaySecs(remaining);
     }
-  }, [dispatch, haptic]);
+  }, [dispatch, haptic, triggerCountdownHaptic]);
 
   const syncRestTimer = useCallback(() => {
     clearInterval(restInterval.current);
     const timer = restTimerRef.current;
     if (!timer.active) {
+      countdownHapticRef.current = null;
       setDisplaySecs(0);
       return;
     }
     if (timer.paused) {
+      countdownHapticRef.current = null;
       const pausedRemaining = Math.max(0, Math.ceil(((timer.endTime || Date.now()) - (timer.pausedAt || Date.now())) / 1000));
       setDisplaySecs(pausedRemaining);
       return;
     }
     if (!timer.endTime) {
+      countdownHapticRef.current = null;
       setDisplaySecs(0);
       return;
     }
     const remaining = Math.ceil((timer.endTime - Date.now()) / 1000);
     if (remaining <= 0) {
+      countdownHapticRef.current = null;
       dispatch({ type: 'SKIP_REST' });
       setDisplaySecs(0);
       triggerHaptic('timerDone', { enabled: haptic, force: true }).catch(() => {});
       return;
     }
+    triggerCountdownHaptic(remaining);
     setDisplaySecs(remaining);
     restInterval.current = setInterval(tickRest, 500);
-  }, [dispatch, haptic, tickRest]);
+  }, [dispatch, haptic, tickRest, triggerCountdownHaptic]);
 
   useEffect(() => {
     syncRestTimer();
@@ -692,6 +756,7 @@ function WorkoutContent({ plan, day, planIndex, dayIndex, navigation }) {
 
   const startRestWithDuration = useCallback((secs, options = {}) => {
     const endTime = Date.now() + secs * 1000;
+    countdownHapticRef.current = null;
     setDisplaySecs(secs);
     dispatch({ type: 'START_REST', endTime, total: secs, triggerExIndex: null });
     if (options.hapticEvent) {
@@ -709,6 +774,7 @@ function WorkoutContent({ plan, day, planIndex, dayIndex, navigation }) {
 
   const handlePause = useCallback(() => {
     clearInterval(restInterval.current);
+    countdownHapticRef.current = null;
     dispatch({ type: 'PAUSE_REST', pausedAt: Date.now() });
     triggerHaptic('selection', { enabled: haptic }).catch(() => {});
   }, [dispatch, haptic]);
@@ -721,12 +787,14 @@ function WorkoutContent({ plan, day, planIndex, dayIndex, navigation }) {
 
   const handleSkip = useCallback(() => {
     clearInterval(restInterval.current);
+    countdownHapticRef.current = null;
     dispatch({ type: 'SKIP_REST' });
     setDisplaySecs(0);
     triggerHaptic('lightConfirm', { enabled: haptic }).catch(() => {});
   }, [dispatch, haptic]);
 
   const handleAdd30 = useCallback(() => {
+    countdownHapticRef.current = null;
     dispatch({ type: 'ADD_30S' });
     if (!state.restTimer.paused) setDisplaySecs(s => s + 30);
     triggerHaptic('selection', { enabled: haptic }).catch(() => {});
@@ -1144,6 +1212,11 @@ function WorkoutContent({ plan, day, planIndex, dayIndex, navigation }) {
           keyExtractor={item => String(item)}
           onDragEnd={onExerciseDragEnd}
           contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+          initialNumToRender={4}
+          maxToRenderPerBatch={6}
+          updateCellsBatchingPeriod={16}
+          windowSize={6}
+          removeClippedSubviews
           ListHeaderComponent={
             <View>
                   {day.exercises.filter(e => e.isWarmup).length > 0 && (
@@ -1453,8 +1526,13 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
   const { plans } = useContext(AppContext);
   const colors = useTheme();
 
-  const plan = plans[planIndex];
-  const day = plan?.days[dayIndex];
+  const safePlans = Array.isArray(plans) ? plans : [];
+  const resolvedPlanIndex = Number.isInteger(planIndex) ? planIndex : 0;
+  const plan = safePlans[resolvedPlanIndex];
+  const safeDays = Array.isArray(plan?.days) ? plan.days : [];
+  const resolvedDayIndex = Number.isInteger(dayIndex) ? dayIndex : 0;
+  const day = safeDays[resolvedDayIndex];
+  const safeExercises = Array.isArray(day?.exercises) ? day.exercises : [];
 
   if (!day) {
     return (
@@ -1465,8 +1543,8 @@ export default function ActiveWorkoutScreen({ route, navigation }) {
   }
 
   return (
-    <WorkoutProvider exercises={day.exercises.filter(e => !e.isWarmup)}>
-      <WorkoutContent plan={plan} day={day} planIndex={planIndex} dayIndex={dayIndex} navigation={navigation} />
+    <WorkoutProvider exercises={safeExercises.filter(e => e && !e.isWarmup)}>
+      <WorkoutContent plan={plan} day={day} planIndex={resolvedPlanIndex} dayIndex={resolvedDayIndex} navigation={navigation} />
     </WorkoutProvider>
   );
 }

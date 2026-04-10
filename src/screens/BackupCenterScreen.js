@@ -107,6 +107,8 @@ export default function BackupCenterScreen({ navigation }) {
     updateBackupPreferences,
     linkDriveBackup,
     unlinkDriveBackup,
+    updateDriveBackupFolder,
+    updateDriveSyncMode,
     settings,
   } = useContext(AppContext);
   const colors = useTheme();
@@ -121,6 +123,8 @@ export default function BackupCenterScreen({ navigation }) {
   const [passphrase, setPassphrase] = useState('');
   const [confirmPassphrase, setConfirmPassphrase] = useState('');
   const [restoreCandidate, setRestoreCandidate] = useState(null);
+  const [folderModalVisible, setFolderModalVisible] = useState(false);
+  const [folderNameInput, setFolderNameInput] = useState('');
 
   const refreshScreen = async () => {
     setLoadingPreview(true);
@@ -230,7 +234,7 @@ export default function BackupCenterScreen({ navigation }) {
     if (backupStatus.driveConfigured === false) {
       setAlertConfig({
         title: 'Drive unavailable',
-        message: 'Google Drive backup is not configured on this alpha build.',
+        message: backupStatus.driveConfigMessage || 'Google Drive backup is not configured on this alpha build.',
         buttons: [{ text: 'OK', style: 'default' }],
       });
       return;
@@ -238,7 +242,7 @@ export default function BackupCenterScreen({ navigation }) {
     if (!ensurePassphraseConfigured('set')) return;
     setBusy(true);
     try {
-      const result = await linkDriveBackup();
+      const result = await linkDriveBackup({ mode: backupStatus.driveMode === 'appdata' ? 'appdata' : 'folder' });
       if (!result?.connected) {
         setAlertConfig({ title: 'Drive link cancelled', message: 'Google Drive backup stays disabled until you finish the sign-in flow.', buttons: [{ text: 'OK', style: 'default' }] });
       } else {
@@ -247,6 +251,49 @@ export default function BackupCenterScreen({ navigation }) {
       await refreshScreen();
     } catch (error) {
       setAlertConfig({ title: 'Drive link failed', message: String(error?.message || error), buttons: [{ text: 'OK', style: 'default' }] });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleSwitchDriveMode = async (mode) => {
+    setBusy(true);
+    try {
+      await updateDriveSyncMode(mode);
+      await refreshScreen();
+      setAlertConfig({
+        title: 'Drive mode updated',
+        message: mode === 'folder'
+          ? 'Backups will sync to your selected Drive folder.'
+          : 'Backups will sync to Google Drive AppData (hidden app storage).',
+        buttons: [{ text: 'OK', style: 'default' }],
+      });
+    } catch (error) {
+      setAlertConfig({ title: 'Mode update failed', message: String(error?.message || error), buttons: [{ text: 'OK', style: 'default' }] });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openFolderModal = () => {
+    setFolderNameInput(backupStatus.driveFolderName || 'IRONLOG Backups');
+    setFolderModalVisible(true);
+  };
+
+  const handleSetDriveFolder = async () => {
+    const next = String(folderNameInput || '').trim();
+    if (!next) {
+      setAlertConfig({ title: 'Folder required', message: 'Enter a Drive folder name.', buttons: [{ text: 'OK', style: 'default' }] });
+      return;
+    }
+    setBusy(true);
+    try {
+      await updateDriveBackupFolder(next);
+      setFolderModalVisible(false);
+      await refreshScreen();
+      setAlertConfig({ title: 'Drive folder updated', message: `Backups will sync to "${next}".`, buttons: [{ text: 'OK', style: 'default' }] });
+    } catch (error) {
+      setAlertConfig({ title: 'Folder update failed', message: String(error?.message || error), buttons: [{ text: 'OK', style: 'default' }] });
     } finally {
       setBusy(false);
     }
@@ -408,10 +455,14 @@ export default function BackupCenterScreen({ navigation }) {
           label={backupStatus.driveLinked ? 'Disconnect Google Drive' : backupStatus.driveConfigured === false ? 'Google Drive unavailable in this build' : 'Connect Google Drive'}
           hint={
             backupStatus.driveConfigured === false
-              ? 'Drive OAuth client is not configured for this alpha build.'
+              ? (backupStatus.driveConfigMessage || 'Drive OAuth client is not configured for this alpha build.')
               : backupStatus.driveLinked
-                ? 'Drive sync is available for hidden app backups.'
-                : 'Required for appDataFolder cloud backup.'
+                ? (
+                    backupStatus.driveMode === 'folder'
+                      ? `Folder sync active${backupStatus.driveFolderName ? `: ${backupStatus.driveFolderName}` : ''}.`
+                      : 'AppData sync active (hidden app storage).'
+                  )
+                : 'Connect Google Drive for cloud backup.'
           }
           icon={backupStatus.driveLinked ? 'cloud-done-outline' : 'cloud-outline'}
           colors={colors}
@@ -419,6 +470,28 @@ export default function BackupCenterScreen({ navigation }) {
           tone={backupStatus.driveLinked ? 'danger' : 'normal'}
           disabled={!backupStatus.driveLinked && backupStatus.driveConfigured === false}
         />
+        {backupStatus.driveLinked ? (
+          <>
+            <ActionButton
+              label={backupStatus.driveMode === 'folder' ? 'Use AppData Sync' : 'Use Drive Folder Sync'}
+              hint={backupStatus.driveMode === 'folder'
+                ? 'Switch to hidden appDataFolder backups.'
+                : 'Switch to a visible Drive folder for backups.'}
+              icon="swap-horizontal-outline"
+              colors={colors}
+              onPress={() => handleSwitchDriveMode(backupStatus.driveMode === 'folder' ? 'appdata' : 'folder')}
+            />
+            {backupStatus.driveMode === 'folder' ? (
+              <ActionButton
+                label="Set Drive Folder"
+                hint={backupStatus.driveFolderName ? `Current: ${backupStatus.driveFolderName}` : 'Choose backup folder name.'}
+                icon="folder-open-outline"
+                colors={colors}
+                onPress={openFolderModal}
+              />
+            ) : null}
+          </>
+        ) : null}
       </Section>
 
       <Section title="BACKUP ACTIONS" colors={colors}>
@@ -535,6 +608,30 @@ export default function BackupCenterScreen({ navigation }) {
                 onPress={() => continueRestore(restoreCandidate.container || restoreCandidate.file?.uri || restoreCandidate.record, restoreCandidate.passphrase || passphrase)}
               >
                 <Text style={[s.modalBtnText, { color: colors.accent }]}>{busy ? 'Restoring...' : 'Restore Now'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={folderModalVisible} transparent animationType="fade" onRequestClose={() => setFolderModalVisible(false)}>
+        <View style={s.overlay}>
+          <View style={[s.modalCard, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+            <Text style={[s.modalTitle, { color: colors.text }]}>Set Drive Folder</Text>
+            <Text style={[s.modalHint, { color: colors.subtext }]}>Backups will sync to a folder in your Drive root. Existing folder names are reused.</Text>
+            <TextInput
+              style={[s.input, { color: colors.text, borderColor: colors.faint, backgroundColor: colors.bg }]}
+              value={folderNameInput}
+              onChangeText={setFolderNameInput}
+              placeholder="IRONLOG Backups"
+              placeholderTextColor={colors.muted}
+            />
+            <View style={s.modalActions}>
+              <TouchableOpacity style={[s.modalBtn, { borderColor: colors.faint }]} onPress={() => setFolderModalVisible(false)}>
+                <Text style={[s.modalBtnText, { color: colors.muted }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[s.modalBtn, { borderColor: colors.accent, backgroundColor: colors.accentSoft }]} onPress={handleSetDriveFolder}>
+                <Text style={[s.modalBtnText, { color: colors.accent }]}>Save</Text>
               </TouchableOpacity>
             </View>
           </View>

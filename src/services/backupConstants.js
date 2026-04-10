@@ -90,6 +90,7 @@ export const GOOGLE_DRIVE_SCOPES = [
   'profile',
   'email',
   'https://www.googleapis.com/auth/drive.appdata',
+  'https://www.googleapis.com/auth/drive.file',
 ];
 
 export const GOOGLE_DISCOVERY = {

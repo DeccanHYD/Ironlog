@@ -1,6 +1,6 @@
 
 import React, { useContext } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Platform, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -36,6 +36,7 @@ import ImportCenterScreen from '../screens/ImportCenterScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
+const STACK_ANIMATION = Platform.OS === 'android' ? 'default' : 'slide_from_right';
 
 function Tabs({ navigation }) {
   const colors = useTheme();
@@ -46,8 +47,10 @@ function Tabs({ navigation }) {
   };
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <Tab.Navigator screenOptions={({ route }) => ({
+      <Tab.Navigator detachInactiveScreens screenOptions={({ route }) => ({
         ...navOpts,
+        lazy: true,
+        freezeOnBlur: true,
         tabBarIcon: ({ color, size }) => {
           const icons = { Home: 'barbell', Plans: 'list', Log: 'time', Stats: 'stats-chart', Settings: 'settings-outline' };
           return <Ionicons name={icons[route.name]} size={size} color={color} />;
@@ -76,7 +79,7 @@ const headerOpts = (colors) => ({
   headerShadowVisible: false,
   headerTintColor: colors.text,
   headerTitleStyle: { fontWeight: '900', letterSpacing: 2, fontSize: 16 },
-  animation: 'slide_from_right',
+  animation: STACK_ANIMATION,
 });
 
 export default function AppNavigator() {
@@ -94,15 +97,20 @@ export default function AppNavigator() {
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
-          animation: 'slide_from_right',
+          animation: STACK_ANIMATION,
           gestureEnabled: true,
           fullScreenGestureEnabled: true,
+          freezeOnBlur: true,
         }}
         initialRouteName={onboardingComplete ? 'Tabs' : 'Onboarding'}
       >
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
         <Stack.Screen name="Tabs" component={Tabs} />
-        <Stack.Screen name="ActiveWorkout" component={ActiveWorkoutScreen} options={{ gestureEnabled: false, animation: 'fade' }} />
+        <Stack.Screen
+          name="ActiveWorkout"
+          component={ActiveWorkoutScreen}
+          options={{ gestureEnabled: false, animation: Platform.OS === 'android' ? 'default' : 'fade' }}
+        />
         <Stack.Screen name="PlanEditor" component={PlanEditorScreen} options={{ ...headerOpts(colors), title: 'EDIT PLAN' }} />
         <Stack.Screen name="ExerciseLibrary" component={ExerciseLibraryScreen} options={{ ...headerOpts(colors), title: 'EXERCISE LIBRARY' }} />
         <Stack.Screen name="BodyWeight" component={BodyWeightScreen} options={{ ...headerOpts(colors), title: 'BODY WEIGHT' }} />

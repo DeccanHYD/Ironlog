@@ -17,12 +17,23 @@ export function rankSubstitutionCandidates({
   contributionCatalog = null,
   limit = 40,
 } = {}) {
+  const validCandidates = candidates.filter(Boolean);
+  if (!exercise) {
+    return validCandidates
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .slice(0, limit)
+      .map((candidate) => ({
+        ...candidate,
+        substitutionScore: 0,
+      }));
+  }
+
   const sourceProfile = resolveExerciseProfile(exercise, profileCatalog);
   const sourceContribution = resolveExerciseContribution(exercise, contributionCatalog, profileCatalog);
   const sourceMuscles = sourceContribution.primaryMuscles || [];
 
-  return candidates
-    .filter((candidate) => candidate && normalizeName(candidate?.name) !== normalizeName(exercise?.name))
+  return validCandidates
+    .filter((candidate) => normalizeName(candidate?.name) !== normalizeName(exercise?.name))
     .map((candidate) => {
       const candidateProfile = resolveExerciseProfile(candidate, profileCatalog);
       const candidateContribution = resolveExerciseContribution(candidate, contributionCatalog, profileCatalog);

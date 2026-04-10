@@ -11,6 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { AppContext } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
+import useDeferredScreenReady from '../hooks/useDeferredScreenReady';
 import BodyMapSVG from '../components/BodyMapSVG';
 import { computeMuscleAnalytics } from '../domain/intelligence/trainingAnalyticsEngine';
 import { buildReadinessSuggestions, computeRecoveryScore } from '../domain/intelligence/recoveryReadinessEngine';
@@ -56,6 +57,7 @@ function getRegionColors(groupReadiness, colors) {
 export default function RecoveryMapScreen({ navigation, route }) {
   const { history, plans, manualRecoveryInput, saveManualRecovery } = useContext(AppContext);
   const colors = useTheme();
+  const analyticsReady = useDeferredScreenReady({ minDelayMs: 24 });
   const [view, setView] = useState('front');
   const [windowKey, setWindowKey] = useState('7d');
   const [mapSize, setMapSize] = useState({ width: 1, height: 1 });
@@ -71,12 +73,17 @@ export default function RecoveryMapScreen({ navigation, route }) {
   });
   const fallbackReadiness = route?.params?.groupReadiness || {};
   const activePlan = plans[0];
+  const safePlanDays = useMemo(
+    () => (Array.isArray(activePlan?.days) ? activePlan.days : []),
+    [activePlan]
+  );
   const programHasExercises = useMemo(() => {
-    if (!Array.isArray(activePlan?.days)) return false;
-    return activePlan.days.some((day) => Array.isArray(day?.exercises) && day.exercises.length > 0);
-  }, [activePlan]);
+    return safePlanDays.some((day) => Array.isArray(day?.exercises) && day.exercises.length > 0);
+  }, [safePlanDays]);
+  const effectiveWindow = windowKey === 'program' && !programHasExercises ? '7d' : windowKey;
 
   useEffect(() => {
+    if (!analyticsReady) return undefined;
     let mounted = true;
     getExerciseIndex()
       .then((index) => {
@@ -87,14 +94,17 @@ export default function RecoveryMapScreen({ navigation, route }) {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [analyticsReady]);
 
-  const analytics = useMemo(() => computeMuscleAnalytics({
-    history,
-    exerciseIndex: libraryIndex,
-    activePlan,
-    window: windowKey,
-  }), [activePlan, history, libraryIndex, windowKey]);
+  const analytics = useMemo(() => {
+    if (!analyticsReady) return { readiness: {}, groups: {}, muscles: {} };
+    return computeMuscleAnalytics({
+      history,
+      exerciseIndex: libraryIndex,
+      activePlan,
+      window: effectiveWindow,
+    });
+  }, [activePlan, analyticsReady, effectiveWindow, history, libraryIndex]);
 
   useEffect(() => {
     if (windowKey === 'program' && !programHasExercises) {
@@ -103,12 +113,23 @@ export default function RecoveryMapScreen({ navigation, route }) {
   }, [programHasExercises, windowKey]);
   const groupReadiness = Object.keys(analytics.readiness || {}).length ? analytics.readiness : fallbackReadiness;
   const recoveryScore = useMemo(
-    () => computeRecoveryScore({ readiness: groupReadiness, manualInput: manualRecoveryInput }),
-    [groupReadiness, manualRecoveryInput]
+    () => {
+      if (!analyticsReady && !Object.keys(fallbackReadiness).length) {
+        return {
+          score: '...',
+          state: 'recovering',
+          explanation: 'Preparing recovery map...',
+        };
+      }
+      return computeRecoveryScore({ readiness: groupReadiness, manualInput: manualRecoveryInput });
+    },
+    [analyticsReady, fallbackReadiness, groupReadiness, manualRecoveryInput]
   );
   const readinessSuggestions = useMemo(
-    () => buildReadinessSuggestions({ readiness: groupReadiness }),
-    [groupReadiness]
+    () => (analyticsReady || Object.keys(fallbackReadiness).length
+      ? buildReadinessSuggestions({ readiness: groupReadiness })
+      : []),
+    [analyticsReady, fallbackReadiness, groupReadiness]
   );
 
   const regionColors = useMemo(
@@ -176,6 +197,9 @@ export default function RecoveryMapScreen({ navigation, route }) {
         <Text style={[s.scoreHint, { color: colors.subtext }]}>{recoveryScore.explanation}</Text>
         {readinessSuggestions[0] ? (
           <Text style={[s.scoreHint, { color: colors.muted }]}>{readinessSuggestions[0]}</Text>
+        ) : null}
+        {!analyticsReady ? (
+          <Text style={[s.scoreHint, { color: colors.muted }]}>Loading real muscle readiness after navigation settles.</Text>
         ) : null}
         <TouchableOpacity style={[s.manualBtn, { borderColor: colors.accent }]} onPress={() => setShowManualModal(true)}>
           <Text style={[s.manualBtnText, { color: colors.accent }]}>UPDATE MANUAL CHECK-IN</Text>
