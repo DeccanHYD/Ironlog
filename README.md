@@ -191,6 +191,7 @@ Key files:
 - [valuation-sheet.md](docs/business/valuation-sheet.md)
 - [sale-channels.md](docs/business/sale-channels.md)
 - [play-store-launch-and-monetization.md](docs/business/play-store-launch-and-monetization.md)
+- [android-hardening-and-billing-plan.md](docs/business/android-hardening-and-billing-plan.md)
 - [kotlin-vs-ship-plan.md](docs/business/kotlin-vs-ship-plan.md)
 
 ## License
@@ -205,5 +206,7 @@ Current repository legal docs:
 - [TERMS.md](TERMS.md) - repository use summary and restrictions
 - [COMMERCIAL-LICENSING.md](COMMERCIAL-LICENSING.md) - commercial licensing and acquisition path
 - [TRADEMARKS.md](TRADEMARKS.md) - brand and identity restrictions
+- [PRIVACY-POLICY.md](PRIVACY-POLICY.md) - current privacy baseline for app and backup flows
+- [TERMS-OF-USE.md](TERMS-OF-USE.md) - app usage terms for launch preparation
 
 Commercial use, resale, app-store publication, white-label use, and hosted business use require separate permission.
