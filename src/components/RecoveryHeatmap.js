@@ -55,35 +55,43 @@ export default function RecoveryHeatmap({ navigation, groupReadiness }) {
   const mapH = 180;
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.85}
-      onPress={() => navigation?.navigate('RecoveryMap', { groupReadiness })}
-      style={[s.container, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <Text style={[s.title, { color: colors.muted }]}>MUSCLE RECOVERY</Text>
-        <Text style={[s.tap, { color: colors.muted }]}>TAP TO EXPAND →</Text>
-      </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-        <View style={{ alignItems: 'center' }}>
-          <Text style={[s.sideLabel, { color: colors.muted }]}>FRONT</Text>
-          <BodyMapSVG regionColors={regionColors} defaultColor={colors.subtext}
-            width={mapW} height={mapH} view="front" />
+    <View style={[s.container, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={() => navigation?.navigate('RecoveryMap', { groupReadiness })}
+      >
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <Text style={[s.title, { color: colors.muted }]}>MUSCLE RECOVERY</Text>
+          <Text style={[s.tap, { color: colors.muted }]}>TAP TO EXPAND →</Text>
         </View>
-        <View style={{ alignItems: 'center' }}>
-          <Text style={[s.sideLabel, { color: colors.muted }]}>BACK</Text>
-          <BodyMapSVG regionColors={regionColors} defaultColor={colors.subtext}
-            width={mapW} height={mapH} view="back" />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <View style={{ alignItems: 'center' }}>
+            <Text style={[s.sideLabel, { color: colors.muted }]}>FRONT</Text>
+            <BodyMapSVG regionColors={regionColors} defaultColor={colors.subtext}
+              width={mapW} height={mapH} view="front" />
+          </View>
+          <View style={{ alignItems: 'center' }}>
+            <Text style={[s.sideLabel, { color: colors.muted }]}>BACK</Text>
+            <BodyMapSVG regionColors={regionColors} defaultColor={colors.subtext}
+              width={mapW} height={mapH} view="back" />
+          </View>
+          <View style={[s.legendCol, { borderLeftColor: colors.faint }]}>
+            {LEGEND.map(({ key, label }) => (
+              <View key={key} style={s.legendItem}>
+                <View style={[s.dot, { backgroundColor: RECOVERY_COLORS[key] || colors.faint }]} />
+                <Text style={[s.legendLabel, { color: colors.subtext }]}>{label}</Text>
+              </View>
+            ))}
+          </View>
         </View>
-        <View style={[s.legendCol, { borderLeftColor: colors.faint }]}>
-          {LEGEND.map(({ key, label }) => (
-            <View key={key} style={s.legendItem}>
-              <View style={[s.dot, { backgroundColor: RECOVERY_COLORS[key] || colors.faint }]} />
-              <Text style={[s.legendLabel, { color: colors.subtext }]}>{label}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[s.analyticsBtn, { borderColor: colors.accent, backgroundColor: colors.accentSoft }]}
+        onPress={() => navigation?.navigate('VolumeAnalytics')}
+      >
+        <Text style={[s.analyticsBtnText, { color: colors.accent }]}>OPEN VOLUME ANALYTICS</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
 
@@ -96,4 +104,6 @@ const s = StyleSheet.create({
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   dot: { width: 9, height: 9, borderRadius: 5 },
   legendLabel: { fontSize: 10, fontWeight: '600' },
+  analyticsBtn: { marginTop: 12, borderWidth: 1, paddingVertical: 10, alignItems: 'center' },
+  analyticsBtnText: { fontSize: 10, fontWeight: '800', letterSpacing: 1.3 },
 });

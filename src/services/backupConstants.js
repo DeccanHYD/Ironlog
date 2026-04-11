@@ -69,6 +69,8 @@ export const DEFAULT_NOTIFICATION_SETTINGS = {
   milestoneNotifications: true,
   quietHoursStart: 22,
   quietHoursEnd: 8,
+  quietHoursStartMinutes: 22 * 60,
+  quietHoursEndMinutes: 8 * 60,
   cooldownHours: 12,
   maxNotificationsPerDayOverride: null,
   weeklyCapMode: 'plan_based',

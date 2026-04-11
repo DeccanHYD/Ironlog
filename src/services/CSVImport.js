@@ -3,6 +3,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getExerciseIndex } from '../services/ExerciseLibraryService';
+import { normalizeAliasKey, resolveCanonicalExerciseName } from '../data/exerciseAliases';
 
 function lev(a, b) {
   const m = a.length, n = b.length;
@@ -21,7 +22,7 @@ function lev(a, b) {
   return dp[m][n];
 }
 
-function norm(s) { return (s || '').toLowerCase().replace(/[^a-z0-9\s]/g, '').trim(); }
+function norm(s) { return normalizeAliasKey(resolveCanonicalExerciseName(s)); }
 
 function parseCSVLine(line) {
   const result = []; let cur = ''; let inQ = false;
@@ -55,14 +56,18 @@ export async function pickAndParseCSV() {
   const format = detectFormat(headers);
 
   const exerciseIndex = await getExerciseIndex() || [];
-  const lib = exerciseIndex.map(ex => ({ ...ex, _norm: norm(ex.name) }));
+  const lib = exerciseIndex.map((exercise) => ({
+    ...exercise,
+    _norm: norm(exercise.name),
+    _aliasNorms: [norm(exercise.name), ...(Array.isArray(exercise.aliases) ? exercise.aliases.map(norm) : [])].filter(Boolean),
+  }));
 
   const matchCache = {};
   function matchEx(rawName) {
     const n = norm(rawName);
     if (matchCache[n]) return matchCache[n];
 
-    const exact = lib.find(ex => ex._norm === n);
+    const exact = lib.find((exercise) => exercise._aliasNorms.includes(n));
     if (exact) return (matchCache[n] = { exercise: exact, matchType: 'exact' });
 
     let best = null, bestSim = 0;
@@ -74,7 +79,8 @@ export async function pickAndParseCSV() {
     }
     if (best) return (matchCache[n] = { exercise: best, matchType: 'fuzzy', original: rawName });
 
-    const customEx = { name: rawName, isCustom: true, id: n.replace(/\s+/g, '_') };
+    const customName = resolveCanonicalExerciseName(rawName);
+    const customEx = { name: customName, isCustom: true, id: n.replace(/\s+/g, '_') };
     return (matchCache[n] = { exercise: customEx, matchType: 'custom', original: rawName });
   }
 
@@ -156,7 +162,7 @@ export async function importParsedCSV(parsed) {
       const m = matchResults[ex.rawName];
       const r = m.exercise;
       return {
-        name: r.name,
+        name: resolveCanonicalExerciseName(r.name),
         exerciseId: r.exerciseId || r.id || r.name,
         primaryMuscles: r.primaryMuscles || [],
         isCustom: r.isCustom || false,

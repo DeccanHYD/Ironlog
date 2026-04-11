@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { formatDuration, calculateVolume } from '../utils/calculations';
+import { AppContext } from '../context/AppContext';
+import { formatVolumeFromKg, formatWeightFromKg } from '../utils/weightUnits';
 
 const C = {
   BG: '#080808',
@@ -18,6 +20,8 @@ const C = {
 };
 
 export default function WorkoutSummaryScreen({ route, navigation }) {
+  const { settings } = useContext(AppContext);
+  const weightUnit = settings?.weightUnit || 'kg';
   const { session, prsHit = [], prevSession } = route.params;
 
   const completedSets = session.exercises.reduce(
@@ -68,9 +72,9 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
           </View>
           <View style={styles.statCard}>
             <Text style={[styles.statValue, { color: C.PULL }]}>
-              {session.totalVolume.toLocaleString()}
+              {Math.round((weightUnit === 'lbs' ? session.totalVolume * 2.2046226218 : session.totalVolume)).toLocaleString()}
             </Text>
-            <Text style={styles.statLabel}>VOLUME (kg)</Text>
+            <Text style={styles.statLabel}>VOLUME ({weightUnit})</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={[styles.statValue, { color: C.LEGS }]}>
@@ -94,7 +98,7 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
               styles.compareValue,
               { color: volumeDiff >= 0 ? C.LEGS : C.PUSH },
             ]}>
-              {volumeDiff >= 0 ? '+' : ''}{volumeDiff.toLocaleString()} kg
+              {volumeDiff >= 0 ? '+' : ''}{formatVolumeFromKg(Math.abs(volumeDiff), weightUnit)}
               {volumeDiffPct !== null ? ` (${volumeDiff >= 0 ? '+' : ''}${volumeDiffPct}%)` : ''}
             </Text>
           </View>
@@ -123,7 +127,7 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
               <View key={idx} style={styles.exCard}>
                 <View style={styles.exCardHeader}>
                   <Text style={styles.exCardName}>{ex.name}</Text>
-                  <Text style={styles.exCardVol}>{exVol > 0 ? `${exVol} kg` : '—'}</Text>
+                  <Text style={styles.exCardVol}>{exVol > 0 ? formatVolumeFromKg(exVol, weightUnit) : '—'}</Text>
                 </View>
                 <View style={styles.setsList}>
                   {ex.sets.map((s, si) => (
@@ -131,7 +135,7 @@ export default function WorkoutSummaryScreen({ route, navigation }) {
                       <Text style={styles.setItemText}>
                         {s.isWarmup ? 'W' : si + 1}{' '}
                         <Text style={[styles.setWeight, s.completed && { color: C.TEXT }]}>
-                          {s.weight || '—'}kg × {s.reps}
+                          {Number(s.weight || 0) > 0 ? formatWeightFromKg(s.weight, weightUnit) : 'BW'} × {s.reps}
                         </Text>
                       </Text>
                       {s.completed && <Text style={styles.setCheck}>✓</Text>}

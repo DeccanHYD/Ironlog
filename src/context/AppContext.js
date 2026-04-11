@@ -80,6 +80,11 @@ function resolveSessionPrimaryMuscle(exercise) {
   return values.find((value) => String(value || '').trim()) || 'other';
 }
 
+function hasEntryToday(list = [], field = 'date') {
+  const today = new Date().toISOString().slice(0, 10);
+  return (Array.isArray(list) ? list : []).some((item) => String(item?.[field] || '').slice(0, 10) === today);
+}
+
 async function buildIndexUpdatesForSession(session) {
   if (!session?.exercises || !session?.date) return null;
   const pairs = await AsyncStorage.multiGet([
@@ -338,7 +343,7 @@ export function AppContextProvider({ children }) {
   }, [history, bodyWeight]);
 
   useEffect(() => {
-    if (!initialized) return;
+    if (!initialized || notificationSettings?.enabled !== true) return;
     const run = async () => {
       const consistency = computeConsistencyMetrics({ history, activePlan: plans?.[0], bodyWeight });
       const recoverySuggestions = manualRecoveryInput?.soreness >= 4
@@ -359,6 +364,10 @@ export function AppContextProvider({ children }) {
       const chosen = await scheduleSmartNotification({
         settings: notificationSettings,
         activePlan: plans?.[0] || null,
+        alreadyActionedTopics: [
+          ...(hasEntryToday(history, 'date') ? ['training', 'streak'] : []),
+          ...(hasEntryToday(bodyWeight, 'date') ? ['bodyweight'] : []),
+        ],
         updateSettings: async (nextSettings) => {
           const next = await saveNotificationSettings(nextSettings);
           setNotificationSettingsState(next);

@@ -106,6 +106,10 @@ async function ensureBackupDirectory() {
   return dir;
 }
 
+export async function prepareLocalBackupStorage() {
+  return ensureBackupDirectory();
+}
+
 async function loadBackupIndex() {
   const index = await readJsonStorage(BACKUP_INDEX_KEY, []);
   return Array.isArray(index) ? index.map(normalizeSnapshotRecord) : [];

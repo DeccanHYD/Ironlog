@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   TextInput, Modal, Dimensions,
@@ -10,6 +10,7 @@ import { useApp } from '../context/AppContext';
 import ExerciseCard from '../components/ExerciseCard';
 import { generateId } from '../utils/calculations';
 import { EXERCISES, MUSCLE_GROUPS } from '../data/exerciseLibrary';
+import { getExerciseIndex } from '../services/ExerciseLibraryService';
 
 const C = {
   BG: '#080808',
@@ -148,10 +149,22 @@ function EditExerciseModal({ visible, exercise, onSave, onClose }) {
 function AddFromLibraryModal({ visible, onAdd, onClose }) {
   const [search, setSearch] = useState('');
   const [filterMuscle, setFilterMuscle] = useState('All');
+  const [library, setLibrary] = useState([]);
 
-  const filtered = EXERCISES.filter(ex => {
-    const matchMuscle = filterMuscle === 'All' || (ex.muscleGroup || '').toLowerCase() === filterMuscle.toLowerCase();
-    const matchSearch = ex.name.toLowerCase().includes(search.toLowerCase());
+  useEffect(() => {
+    if (!visible) return;
+    getExerciseIndex()
+      .then((index) => setLibrary(Array.isArray(index) ? index : EXERCISES))
+      .catch(() => setLibrary(EXERCISES));
+  }, [visible]);
+
+  const source = library.length ? library : EXERCISES;
+  const filtered = source.filter(ex => {
+    const muscleLabel = ex.muscleGroup || ex.primaryMuscle || (ex.primaryMuscles || [])[0] || '';
+    const matchMuscle = filterMuscle === 'All' || String(muscleLabel).toLowerCase() === filterMuscle.toLowerCase();
+    const aliasText = Array.isArray(ex.aliases) ? ex.aliases.join(' ').toLowerCase() : '';
+    const needle = search.toLowerCase();
+    const matchSearch = ex.name.toLowerCase().includes(needle) || aliasText.includes(needle);
     return matchMuscle && matchSearch;
   });
 
@@ -197,7 +210,7 @@ function AddFromLibraryModal({ visible, onAdd, onClose }) {
               >
                 <View style={libStyles.exInfo}>
                   <Text style={libStyles.exName}>{ex.name}</Text>
-                  <Text style={libStyles.exMeta}>{ex.muscleGroup} · {ex.equipment}</Text>
+                  <Text style={libStyles.exMeta}>{ex.muscleGroup || ex.primaryMuscle || (ex.primaryMuscles || [])[0] || 'Other'} · {ex.equipment || 'Other'}</Text>
                 </View>
                 <Text style={libStyles.addIcon}>+</Text>
               </TouchableOpacity>
@@ -266,6 +279,8 @@ export default function PlanDayEditorScreen({ route, navigation }) {
       isHeavy: false,
       isWarmup: false,
       muscleGroup: libEx.muscleGroup,
+      primaryMuscles: libEx.primaryMuscles || (libEx.primaryMuscle ? [libEx.primaryMuscle] : []),
+      exerciseId: libEx.id || libEx.exerciseId || libEx.name,
       notes: libEx.cue || '',
       defaultRestSeconds: 120,
     };

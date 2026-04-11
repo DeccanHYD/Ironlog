@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect, useMemo } from 'react';
+﻿import React, { useContext, useState, useEffect, useMemo } from 'react';
 import { ActivityIndicator, View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { captureRef } from 'react-native-view-shot';
@@ -20,8 +20,11 @@ import {
   buildProgramInsights,
 } from '../domain/intelligence/programIntelligenceEngine';
 import { computeRecoveryScore } from '../domain/intelligence/recoveryReadinessEngine';
+import { prepareLocalBackupStorage } from '../services/backupService';
+import { ensureNotificationPermissions, getNotificationPermissionStatus } from '../services/notificationScheduler';
 
 const ONBOARDING_KEY = '@ironlog/onboardingComplete';
+const FEATURE_SETUP_KEY = '@ironlog/v110FeatureSetupSeen';
 
 function getStreak(history) {
   if (!history.length) return 0;
@@ -160,14 +163,19 @@ function computeSetBasedGroupReadiness(history) {
 export default function HomeScreen({ navigation }) {
   const {
     plans, history, bodyWeight, pb, exerciseMap, settings, onboardingComplete, completeOnboarding,
-    manualRecoveryInput, engagementSnapshot, milestoneUnlocks,
+    manualRecoveryInput, engagementSnapshot, milestoneUnlocks, backupStatus,
+    updateNotificationPreferences,
   } = useContext(AppContext);
   const colors = useTheme();
   const insightsReady = useDeferredScreenReady({ minDelayMs: 16 });
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showFeatureSetup, setShowFeatureSetup] = useState(false);
   const [libraryIndex, setLibraryIndex] = useState([]);
   const [weeklyShareNode, setWeeklyShareNode] = useState(null);
   const [weeklyShareStatus, setWeeklyShareStatus] = useState('');
+  const [featureSetupBusy, setFeatureSetupBusy] = useState(false);
+  const [notificationPermissionGranted, setNotificationPermissionGranted] = useState(null);
+  const [localBackupReady, setLocalBackupReady] = useState(false);
 
   useEffect(() => {
     if (!insightsReady) return undefined;
@@ -190,10 +198,48 @@ export default function HomeScreen({ navigation }) {
     }
   }, [onboardingComplete, history]);
 
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const [permissionStatus, setupSeen, backupDirectory] = await Promise.all([
+        getNotificationPermissionStatus().catch(() => null),
+        AsyncStorage.getItem(FEATURE_SETUP_KEY).catch(() => null),
+        prepareLocalBackupStorage().catch(() => null),
+      ]);
+      if (!mounted) return;
+      setNotificationPermissionGranted(permissionStatus?.granted === true);
+      setLocalBackupReady(!!backupDirectory);
+      if (onboardingComplete && !setupSeen) {
+        setShowFeatureSetup(true);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [onboardingComplete]);
+
   const dismissOnboarding = async (goToPlans) => {
     await completeOnboarding();
     setShowOnboarding(false);
     if (goToPlans) navigation.navigate('Plans');
+  };
+
+  const finishFeatureSetup = async () => {
+    await AsyncStorage.setItem(FEATURE_SETUP_KEY, '1');
+    setShowFeatureSetup(false);
+  };
+
+  const enableNotificationsFromSetup = async () => {
+    setFeatureSetupBusy(true);
+    try {
+      const granted = await ensureNotificationPermissions();
+      setNotificationPermissionGranted(granted);
+      if (granted) {
+        await updateNotificationPreferences({ enabled: true });
+      }
+    } finally {
+      setFeatureSetupBusy(false);
+    }
   };
 
   const streak = getStreak(history);
@@ -481,12 +527,27 @@ export default function HomeScreen({ navigation }) {
             <Text style={[s.weeklyShareText, { color: colors.accent }]}>SHARE</Text>
           </TouchableOpacity>
           <Text style={[s.intelReason, { color: colors.text, marginTop: 2 }]}>{engagementSnapshot.weeklySummary.summaryLine}</Text>
-          <View style={s.metricRow}>
-            <Text style={[s.metricChip, { color: colors.text, borderColor: colors.faint }]}>{engagementSnapshot.weeklySummary.workouts} workouts</Text>
-            <Text style={[s.metricChip, { color: colors.text, borderColor: colors.faint }]}>{engagementSnapshot.weeklySummary.totalSets} sets</Text>
-            <Text style={[s.metricChip, { color: colors.text, borderColor: colors.faint }]}>{Math.round(engagementSnapshot.weeklySummary.totalVolume / 1000 * 10) / 10}t volume</Text>
-            <Text style={[s.metricChip, { color: colors.text, borderColor: colors.faint }]}>Train streak {engagementSnapshot?.streaks?.training?.current || 0}d</Text>
-            <Text style={[s.metricChip, { color: colors.text, borderColor: colors.faint }]}>BW streak {engagementSnapshot?.streaks?.bodyweight?.current || 0}d</Text>
+          <View style={s.summaryGrid}>
+            <View style={s.summaryRow}>
+              <View style={[s.summaryCard, { borderColor: colors.faint }]}>
+                <Text style={[s.summaryCardText, { color: colors.text }]}>{engagementSnapshot.weeklySummary.workouts} workouts</Text>
+              </View>
+              <View style={[s.summaryCard, { borderColor: colors.faint }]}>
+                <Text style={[s.summaryCardText, { color: colors.text }]}>{engagementSnapshot.weeklySummary.totalSets} sets</Text>
+              </View>
+              <View style={[s.summaryCard, { borderColor: colors.faint }]}>
+                <Text style={[s.summaryCardText, { color: colors.text }]}>{Math.round(engagementSnapshot.weeklySummary.totalVolume / 1000 * 10) / 10}t volume</Text>
+              </View>
+            </View>
+            <View style={s.summaryRow}>
+              <View style={[s.summaryCard, { borderColor: colors.faint }]}>
+                <Text style={[s.summaryCardText, { color: colors.text }]}>Train streak {engagementSnapshot?.streaks?.training?.current || 0}d</Text>
+              </View>
+              <View style={[s.summaryCard, { borderColor: colors.faint }]}>
+                <Text style={[s.summaryCardText, { color: colors.text }]}>BW streak {engagementSnapshot?.streaks?.bodyweight?.current || 0}d</Text>
+              </View>
+              <View style={[s.summaryCard, { borderColor: 'transparent', backgroundColor: 'transparent' }]} />
+            </View>
           </View>
           {weeklyShareStatus ? <Text style={[s.intelReason, { color: colors.muted }]}>{weeklyShareStatus}</Text> : null}
         </View>
@@ -496,7 +557,7 @@ export default function HomeScreen({ navigation }) {
       <View style={[s.statsRow, { borderBottomColor: colors.faint }]}>
         {[
           { val: weekSessions.length + '/7', label: 'THIS WEEK' },
-          { val: streak + ' days', label: 'STREAK' },
+          { val: `${streak} ${streak === 1 ? 'day' : 'days'}`, label: 'STREAK' },
           { val: avgDur + 'm', label: 'AVG TIME' },
         ].map((st, i) => (
           <View key={st.label} style={[s.statBox, i < 2 && { borderRightWidth: 1, borderRightColor: colors.faint }]}>
@@ -506,7 +567,7 @@ export default function HomeScreen({ navigation }) {
         ))}
       </View>
 
-      {/* Volume chips — only show if active plan has days */}
+      {/* Volume chips â€” only show if active plan has days */}
       {activePlanDays.length > 0 && (
         <View style={[s.chipsRow, { borderBottomColor: colors.faint }]}>
           <Text style={[s.chipsLabel, { color: colors.muted }]}>THIS WEEK</Text>
@@ -527,7 +588,7 @@ export default function HomeScreen({ navigation }) {
       <TouchableOpacity style={[s.bwRow, { borderBottomColor: colors.faint }]} onPress={() => navigation.navigate('BodyWeight')}>
         <Text style={[s.bwLabel, { color: colors.muted }]}>BODY WEIGHT</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Text style={[s.bwVal, { color: colors.text }]}>{latestBW ? latestBW.weight + ' kg' : '— kg'}</Text>
+          <Text style={[s.bwVal, { color: colors.text }]}>{latestBW ? latestBW.weight + ' kg' : '-- kg'}</Text>
           <Ionicons name="chevron-forward" size={18} color={colors.muted} />
         </View>
       </TouchableOpacity>
@@ -596,6 +657,72 @@ export default function HomeScreen({ navigation }) {
         )}
       </View>
 
+      <Modal visible={showFeatureSetup} transparent animationType="fade">
+        <View style={s.overlay}>
+          <View style={[s.onboardCard, { backgroundColor: colors.card, borderColor: colors.cardBorder, gap: 14 }]}>
+            <Text style={[s.onboardTitle, { color: colors.text, fontSize: 28, lineHeight: 32 }]}>NEW IN{'\n'}IRONLOG 1.1.0</Text>
+            <Text style={[s.onboardSub, { color: colors.muted }]}>
+              Smart notifications, encrypted backups, and optional Google Drive backup are ready. We only ask for what these features actually need.
+            </Text>
+            <View style={[s.setupRow, { borderColor: colors.faint }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.setupTitle, { color: colors.text }]}>Notifications</Text>
+                <Text style={[s.setupHint, { color: colors.subtext }]}>
+                  Plan-aware reminders, quiet hours, and recovery nudges.
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[s.setupBtn, { borderColor: notificationPermissionGranted ? colors.accent : colors.faint, backgroundColor: notificationPermissionGranted ? colors.accentSoft : 'transparent' }]}
+                disabled={featureSetupBusy || notificationPermissionGranted}
+                onPress={enableNotificationsFromSetup}
+              >
+                <Text style={[s.setupBtnText, { color: notificationPermissionGranted ? colors.accent : colors.subtext }]}>
+                  {notificationPermissionGranted ? 'READY' : (featureSetupBusy ? 'ASKING...' : 'ALLOW')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <View style={[s.setupRow, { borderColor: colors.faint }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.setupTitle, { color: colors.text }]}>Local backup storage</Text>
+                <Text style={[s.setupHint, { color: colors.subtext }]}>
+                  Encrypted snapshots live in IRONLOG storage. No broad file permission needed.
+                </Text>
+              </View>
+              <View style={[s.setupBtn, { borderColor: localBackupReady ? colors.accent : colors.faint, backgroundColor: localBackupReady ? colors.accentSoft : 'transparent' }]}>
+                <Text style={[s.setupBtnText, { color: localBackupReady ? colors.accent : colors.subtext }]}>
+                  {localBackupReady ? 'READY' : 'PREPARING'}
+                </Text>
+              </View>
+            </View>
+            <View style={[s.setupRow, { borderColor: colors.faint }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[s.setupTitle, { color: colors.text }]}>Google Drive backup</Text>
+                <Text style={[s.setupHint, { color: colors.subtext }]}>
+                  Optional. Open Backup Center to connect Drive and choose `AppData` or folder sync.
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={[s.setupBtn, { borderColor: colors.accent, backgroundColor: colors.accentSoft }]}
+                onPress={async () => {
+                  await finishFeatureSetup();
+                  navigation.navigate('BackupCenter');
+                }}
+              >
+                <Text style={[s.setupBtnText, { color: colors.accent }]}>
+                  {backupStatus?.driveLinked ? 'OPEN' : 'SET UP'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={[s.setupFootnote, { color: colors.muted }]}>
+              No microphone, overlay, or broad storage permission is required for this setup.
+            </Text>
+            <TouchableOpacity style={[s.onboardBtn, { backgroundColor: colors.accent }]} onPress={finishFeatureSetup}>
+              <Text style={s.onboardBtnText}>CONTINUE</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* Onboarding modal */}
       <Modal visible={showOnboarding} transparent animationType="fade">
         <View style={s.overlay}>
@@ -641,6 +768,10 @@ const s = StyleSheet.create({
   targetPreviewVal: { fontSize: 13, fontWeight: '900' },
   metricRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   metricChip: { borderWidth: 1, paddingHorizontal: 8, paddingVertical: 5, fontSize: 10, letterSpacing: 0.4 },
+  summaryGrid: { marginTop: 10, gap: 8 },
+  summaryRow: { flexDirection: 'row', gap: 8 },
+  summaryCard: { flex: 1, borderWidth: 1, minHeight: 36, justifyContent: 'center', paddingHorizontal: 8, paddingVertical: 6 },
+  summaryCardText: { fontSize: 11, fontWeight: '700', textAlign: 'center' },
   programCta: { marginTop: 10, borderWidth: 1, paddingHorizontal: 10, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' },
   programCtaText: { fontSize: 10, fontWeight: '800', letterSpacing: 1.2 },
   weeklyShareBtn: { position: 'absolute', right: 12, top: 10, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 5, flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -674,8 +805,15 @@ const s = StyleSheet.create({
   onboardSub: { fontSize: 14, textAlign: 'center', lineHeight: 22 },
   onboardBtn: { width: '100%', padding: 18, alignItems: 'center', marginTop: 8 },
   onboardBtnText: { color: '#fff', fontWeight: '800', fontSize: 14, letterSpacing: 2 },
+  setupRow: { width: '100%', borderWidth: 1, padding: 12, flexDirection: 'row', gap: 12, alignItems: 'center' },
+  setupTitle: { fontSize: 13, fontWeight: '800', letterSpacing: 0.4 },
+  setupHint: { fontSize: 11, lineHeight: 16, marginTop: 4 },
+  setupBtn: { minWidth: 88, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  setupBtnText: { fontSize: 10, fontWeight: '800', letterSpacing: 1.2 },
+  setupFootnote: { width: '100%', fontSize: 11, lineHeight: 16, textAlign: 'center' },
   restoreBtn: { width: '100%', padding: 14, alignItems: 'center', borderWidth: 1 },
   restoreBtnText: { fontSize: 11, fontWeight: '700', letterSpacing: 1.3 },
   onboardSkip: { paddingVertical: 8 },
   onboardSkipText: { fontSize: 13 },
 });
+

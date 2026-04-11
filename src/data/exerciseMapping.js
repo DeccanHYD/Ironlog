@@ -112,4 +112,22 @@ export const EXERCISE_ID_MAP = {
 
   // COMPOUND NAME (used in default plan)
   'Weighted Pull-Up or Lat Pulldown': 'Wide-Grip_Lat_Pulldown',          // MED — fallback
+
+  // CANONICAL / LEGACY ALIASES
+  'Pullups':                     'Pull-Up',
+  'Pushups':                     'Push-Up',
+  'Seated Cable Rows':           'Seated_Cable_Rows',
+  'Leg Extensions':              'Leg_Extensions',
+  'Hammer Curls':                'Hammer_Curls',
+  'Weighted Pull Ups':           'Weighted_Pull_Ups',
+  'Worlds Greatest Stretch':     'Worlds_Greatest_Stretch',
+  'Bench Press - Smith Machine': 'Smith_Machine_Bench_Press',
+  'Smith Machine Bench Press':   'Smith_Machine_Bench_Press',
+  'Squat - Smith Machine':       'Smith_Machine_Squat',
+  'Smith Machine Squat':         'Smith_Machine_Squat',
+  'Hack Squat - Barbell':        'Barbell_Hack_Squat',
+  'Barbell Rear Delt Row':       'Rear_Delt_Row_-_Barbell',
+  'Cable Lateral Raise (Single Arm)': 'Cable_Internal_Rotation',
+  'Machine Lateral Raise':       'Side_Lateral_Raise',
+  'Assisted Pull-Up Machine':    'Assisted_Pull-Up',
 };

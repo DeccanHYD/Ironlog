@@ -211,7 +211,9 @@ export default function PlanEditorScreen({ route, navigation }) {
 
   const filtered = allExercises.filter(e => {
     const ms = matchesExerciseFilter(e, libMuscle, { includeCategory: true, includeEquipment: false });
-    const sr = !libSearch || e.name.toLowerCase().includes(libSearch.toLowerCase());
+    const needle = libSearch.toLowerCase();
+    const aliasText = Array.isArray(e.aliases) ? e.aliases.join(' ').toLowerCase() : '';
+    const sr = !libSearch || e.name.toLowerCase().includes(needle) || aliasText.includes(needle);
     return ms && sr;
   });
 

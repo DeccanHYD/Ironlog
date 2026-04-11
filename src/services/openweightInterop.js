@@ -4,6 +4,7 @@ import * as Sharing from 'expo-sharing';
 import Constants from 'expo-constants';
 import { getExerciseIndex } from './ExerciseLibraryService';
 import { importParsedCSV } from './CSVImport';
+import { normalizeAliasKey, resolveCanonicalExerciseName } from '../data/exerciseAliases';
 
 function lev(a, b) {
   const m = a.length;
@@ -23,9 +24,7 @@ function lev(a, b) {
   return dp[m][n];
 }
 
-function norm(s) {
-  return (s || '').toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
-}
+function norm(s) { return normalizeAliasKey(resolveCanonicalExerciseName(s)); }
 
 function toIsoDay(dateLike) {
   if (!dateLike) return null;
@@ -65,14 +64,18 @@ function flattenOpenWeightLogs(raw) {
 
 async function buildMatcher() {
   const exerciseIndex = await getExerciseIndex() || [];
-  const lib = exerciseIndex.map((ex) => ({ ...ex, _norm: norm(ex.name) }));
+  const lib = exerciseIndex.map((exercise) => ({
+    ...exercise,
+    _norm: norm(exercise.name),
+    _aliasNorms: [norm(exercise.name), ...(Array.isArray(exercise.aliases) ? exercise.aliases.map(norm) : [])].filter(Boolean),
+  }));
   const cache = {};
   return (rawName) => {
     const n = norm(rawName);
     if (!n) return null;
     if (cache[n]) return cache[n];
 
-    const exact = lib.find((ex) => ex._norm === n);
+    const exact = lib.find((exercise) => exercise._aliasNorms.includes(n));
     if (exact) {
       cache[n] = { exercise: exact, matchType: 'exact' };
       return cache[n];
@@ -96,7 +99,7 @@ async function buildMatcher() {
     }
 
     cache[n] = {
-      exercise: { name: rawName, isCustom: true, id: n.replace(/\s+/g, '_') },
+      exercise: { name: resolveCanonicalExerciseName(rawName), isCustom: true, id: n.replace(/\s+/g, '_') },
       matchType: 'custom',
       original: rawName,
     };

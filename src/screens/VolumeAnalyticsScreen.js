@@ -242,9 +242,10 @@ function getVolumeEquivalent(totalVolumeKg) {
   return match.item;
 }
 
-function formatVolumeKg(totalVolumeKg) {
-  if (totalVolumeKg >= 1000) return `${(totalVolumeKg / 1000).toFixed(1)}t`;
-  return `${Math.round(totalVolumeKg)}kg`;
+function formatVolumeKg(totalVolumeKg, unit = 'kg') {
+  const converted = unit === 'lbs' ? totalVolumeKg * 2.2046226218 : totalVolumeKg;
+  if (converted >= 1000) return `${(converted / 1000).toFixed(1)}t`;
+  return `${Math.round(converted)}${unit}`;
 }
 
 function roundMetric(value, decimals = 1) {
@@ -408,6 +409,7 @@ function isWithinDays(sessionDate, days) {
 export default function VolumeAnalyticsScreen() {
   const { history, plans, settings } = useContext(AppContext);
   const colors = useTheme();
+  const weightUnit = settings?.weightUnit || 'kg';
   const analyticsReady = useDeferredScreenReady({ minDelayMs: 24 });
   const analyticsShareRef = useRef(null);
   const [windowKey, setWindowKey] = useState('current_week');
@@ -588,7 +590,7 @@ export default function VolumeAnalyticsScreen() {
             { val: workoutCount, label: effectiveWindow === 'program' ? 'Plan Days' : 'Workouts' },
             { val: Math.round(analytics.totalWorkingSets), label: 'Direct Sets' },
             { val: sortedMuscles.length, label: 'Muscles Hit' },
-            { val: formatVolumeKg(analytics.totalVolumeKg), label: 'Volume' },
+            { val: formatVolumeKg(analytics.totalVolumeKg, weightUnit), label: `Volume (${weightUnit})` },
           ].map(({ val, label }, idx) => (
             <React.Fragment key={label}>
               {idx > 0 && <View style={[s.statDivider, { backgroundColor: colors.faint }]} />}

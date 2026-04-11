@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EXERCISES as BUNDLED_EXERCISES } from '../data/exerciseLibrary';
 import { EXERCISE_LIBRARY_ADDITIONS } from '../data/exerciseLibraryAdditions';
 import { EXERCISE_ID_MAP } from '../data/exerciseMapping';
+import { resolveCanonicalExerciseName, normalizeAliasKey } from '../data/exerciseAliases';
 import {
   deleteCustomExerciseFromDb,
   upsertCustomExerciseToDb,
@@ -12,6 +13,47 @@ import { resolveExerciseYoutubeMeta } from '../utils/exerciseVideoLinks';
 const LIBRARY_KEY = '@ironlog/exerciseLibrary';
 const INDEX_KEY = '@ironlog/exerciseIndex';
 const FETCH_URL = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises.json';
+
+const VALID_EQUIPMENT = new Set(['Barbell', 'Dumbbell', 'Cable', 'Machine', 'Bodyweight', 'Band', 'Conditioning', 'Other']);
+const VALID_TRACKING = new Set(['weight_reps', 'duration', 'duration_distance']);
+
+const LEGACY_EXERCISE_ID_ALIASES = {
+  pullups: 'pull_up',
+  pushups: 'push_up',
+  seated_cable_rows: 'seated_cable_row',
+  leg_extensions: 'leg_extension',
+  hammer_curls: 'hammer_curl',
+  weighted_pull_ups: 'weighted_pull_up',
+  smith_machine_bench_press: 'longhaul_bench_press_smith_machine',
+  smith_machine_incline_bench_press: 'incline_bench_press_smith_machine',
+  smith_machine_squat: 'longhaul_squat_smith_machine',
+  barbell_hack_squat: 'longhaul_hack_squat_barbell',
+  barbell_rear_delt_row: 'longhaul_rear_delt_row_barbell',
+};
+
+const REQUIRED_CANONICAL_EXERCISES = [
+  { id: 'cable_fly', name: 'Cable Fly', primaryMuscle: 'Chest', equipment: 'Cable', trackingType: 'weight_reps' },
+  { id: 'cable_fly_low_to_high', name: 'Cable Fly Low to High', primaryMuscle: 'Upper Chest', equipment: 'Cable', trackingType: 'weight_reps' },
+  { id: 'cable_fly_high_to_low', name: 'Cable Fly High to Low', primaryMuscle: 'Lower Chest', equipment: 'Cable', trackingType: 'weight_reps' },
+  { id: 'machine_chest_press', name: 'Machine Chest Press', primaryMuscle: 'Chest', equipment: 'Machine', trackingType: 'weight_reps' },
+  { id: 'machine_incline_chest_press', name: 'Machine Incline Chest Press', primaryMuscle: 'Upper Chest', equipment: 'Machine', trackingType: 'weight_reps' },
+  { id: 'chest_supported_row', name: 'Chest-Supported Row', primaryMuscle: 'Upper Back', equipment: 'Machine', trackingType: 'weight_reps' },
+  { id: 'chest_supported_dumbbell_row', name: 'Chest-Supported Dumbbell Row', primaryMuscle: 'Upper Back', equipment: 'Dumbbell', trackingType: 'weight_reps' },
+  { id: 'seal_row', name: 'Seal Row', primaryMuscle: 'Upper Back', equipment: 'Barbell', trackingType: 'weight_reps' },
+  { id: 'pendlay_row', name: 'Pendlay Row', primaryMuscle: 'Upper Back', equipment: 'Barbell', trackingType: 'weight_reps' },
+  { id: 'meadows_row', name: 'Meadows Row', primaryMuscle: 'Upper Back', equipment: 'Barbell', trackingType: 'weight_reps' },
+  { id: 'assisted_pullup_machine', name: 'Assisted Pull-Up Machine', primaryMuscle: 'Lats', equipment: 'Machine', trackingType: 'weight_reps' },
+  { id: 'cable_lateral_raise_single_arm', name: 'Cable Lateral Raise (Single Arm)', primaryMuscle: 'Side Delts', equipment: 'Cable', trackingType: 'weight_reps' },
+  { id: 'machine_lateral_raise', name: 'Machine Lateral Raise', primaryMuscle: 'Side Delts', equipment: 'Machine', trackingType: 'weight_reps' },
+  { id: 'reverse_pec_deck', name: 'Reverse Pec Deck', primaryMuscle: 'Rear Delts', equipment: 'Machine', trackingType: 'weight_reps' },
+  { id: 'bulgarian_split_squat', name: 'Bulgarian Split Squat', primaryMuscle: 'Quads', equipment: 'Dumbbell', trackingType: 'weight_reps' },
+  { id: 'belt_squat', name: 'Belt Squat', primaryMuscle: 'Quads', equipment: 'Machine', trackingType: 'weight_reps' },
+  { id: 'safety_bar_squat', name: 'Safety Bar Squat', primaryMuscle: 'Quads', equipment: 'Barbell', trackingType: 'weight_reps' },
+  { id: 'nordic_hamstring_curl', name: 'Nordic Hamstring Curl', primaryMuscle: 'Hamstrings', equipment: 'Bodyweight', trackingType: 'weight_reps' },
+  { id: 'tibialis_raise', name: 'Tibialis Raise', primaryMuscle: 'Calves', equipment: 'Bodyweight', trackingType: 'weight_reps' },
+  { id: 'tibialis_raise_machine', name: 'Tibialis Raise (Machine)', primaryMuscle: 'Calves', equipment: 'Machine', trackingType: 'weight_reps' },
+  { id: 'ski_erg', name: 'Ski Erg', primaryMuscle: 'Conditioning', equipment: 'Conditioning', trackingType: 'duration_distance' },
+];
 
 function toArray(value) {
   if (Array.isArray(value)) return value.filter(Boolean);
@@ -74,7 +116,153 @@ function normalizeEquipment(eq) {
     'medicine ball': 'Other', 'exercise ball': 'Other', 'e-z curl bar': 'Barbell',
     'foam roll': 'Other',
   };
-  return map[(eq || '').toLowerCase()] || 'Other';
+  const normalized = map[(eq || '').toLowerCase()] || 'Other';
+  return VALID_EQUIPMENT.has(normalized) ? normalized : 'Other';
+}
+
+function normalizeMuscleLabel(value) {
+  const key = String(value || '').trim().toLowerCase();
+  const map = {
+    chest: 'Chest',
+    'upper chest': 'Upper Chest',
+    'mid chest': 'Mid Chest',
+    'lower chest': 'Lower Chest',
+    lats: 'Lats',
+    back: 'Back',
+    'upper back': 'Upper Back',
+    'middle back': 'Upper Back',
+    traps: 'Traps',
+    'lower back': 'Spinal Erectors',
+    erectors: 'Spinal Erectors',
+    shoulders: 'Shoulders',
+    'front delts': 'Front Delts',
+    'side delts': 'Side Delts',
+    'rear delts': 'Rear Delts',
+    biceps: 'Biceps',
+    triceps: 'Triceps',
+    forearms: 'Forearms',
+    core: 'Core',
+    abdominals: 'Core',
+    'upper abs': 'Upper Abs',
+    'lower abs': 'Lower Abs',
+    obliques: 'Obliques',
+    quads: 'Quads',
+    quadriceps: 'Quads',
+    hamstrings: 'Hamstrings',
+    glutes: 'Glutes',
+    calves: 'Calves',
+    adductors: 'Adductors',
+    abductors: 'Abductors',
+    conditioning: 'Conditioning',
+  };
+  return map[key] || toTitleCase(value);
+}
+
+function toTitleCase(value) {
+  return String(value || '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
+}
+
+function normalizeTrackingType(type, name, category) {
+  const raw = String(type || '').toLowerCase().trim();
+  const signal = `${String(name || '').toLowerCase()} ${String(category || '').toLowerCase()}`;
+  if (raw && VALID_TRACKING.has(raw)) return raw;
+  if (/(stretch|hold|plank|mobility|isometric)/.test(signal)) return 'duration';
+  if (/(bike|erg|run|row|ski|carry|conditioning|distance|cardio|treadmill)/.test(signal)) return 'duration_distance';
+  return 'weight_reps';
+}
+
+function canonicalizeExerciseRecord(exercise = {}) {
+  const originalName = exercise.name;
+  const canonicalName = resolveCanonicalExerciseName(originalName);
+  const normalizedId = LEGACY_EXERCISE_ID_ALIASES[exercise.id] || exercise.id;
+  const primaryMuscles = normalizePrimaryMuscles({
+    ...exercise,
+    name: canonicalName,
+    primaryMuscles: normalizePrimaryMuscles(exercise).map(normalizeMuscleLabel),
+  }).map(normalizeMuscleLabel);
+  if (normalizeAliasKey(canonicalName).includes('cable hip adduction')) {
+    primaryMuscles.splice(0, primaryMuscles.length, 'Adductors');
+  }
+  if (normalizeAliasKey(canonicalName).includes('air bike')) {
+    primaryMuscles.splice(0, primaryMuscles.length, 'Conditioning');
+  }
+
+  const category = normalizeCategory(exercise.category || exercise.trackingType);
+  const trackingType = normalizeTrackingType(exercise.trackingType, canonicalName, category);
+  let equipment = normalizeEquipment(exercise.equipment || exercise.mechanic || '');
+  if (canonicalName.toLowerCase().includes('air bike') || canonicalName.toLowerCase().includes('ski erg')) {
+    equipment = 'Conditioning';
+  }
+
+  const aliases = new Set(toArray(exercise.aliases));
+  if (originalName && originalName !== canonicalName) aliases.add(originalName);
+  if (normalizedId && normalizedId !== exercise.id) aliases.add(exercise.id);
+
+  return {
+    ...exercise,
+    id: normalizedId || canonicalName.replace(/[^a-zA-Z0-9]/g, '_'),
+    name: canonicalName,
+    primaryMuscles,
+    primaryMuscle: primaryMuscles[0] || normalizeMuscleLabel(exercise.primaryMuscle || exercise.primary || exercise.muscle),
+    equipment,
+    category,
+    trackingType,
+    aliases: Array.from(aliases).filter(Boolean),
+  };
+}
+
+function applyCanonicalNormalizationAndDedup(exercises = []) {
+  const bySignature = new Map();
+  exercises.forEach((exercise) => {
+    const normalized = canonicalizeExerciseRecord(exercise);
+    const signature = normalizeAliasKey(normalized.name);
+    const existing = bySignature.get(signature);
+    if (!existing) {
+      bySignature.set(signature, normalized);
+      return;
+    }
+    const mergedAliases = new Set([...(existing.aliases || []), ...(normalized.aliases || []), existing.name, normalized.name]);
+    const betterEquipment = existing.equipment === 'Other' && normalized.equipment !== 'Other' ? normalized.equipment : existing.equipment;
+    const betterTracking = existing.trackingType === 'weight_reps' && normalized.trackingType !== 'weight_reps'
+      ? normalized.trackingType
+      : existing.trackingType;
+    bySignature.set(signature, {
+      ...existing,
+      aliases: Array.from(mergedAliases).filter(Boolean),
+      equipment: betterEquipment,
+      trackingType: betterTracking,
+      primaryMuscles: existing.primaryMuscles?.length ? existing.primaryMuscles : normalized.primaryMuscles,
+      primaryMuscle: existing.primaryMuscle || normalized.primaryMuscle,
+    });
+  });
+
+  const result = Array.from(bySignature.values());
+  const signatureSet = new Set(result.map((exercise) => normalizeAliasKey(exercise.name)));
+  REQUIRED_CANONICAL_EXERCISES.forEach((seed) => {
+    const signature = normalizeAliasKey(seed.name);
+    if (signatureSet.has(signature)) return;
+    result.push(canonicalizeExerciseRecord({
+      id: seed.id,
+      name: seed.name,
+      primaryMuscles: [seed.primaryMuscle],
+      primaryMuscle: seed.primaryMuscle,
+      equipment: seed.equipment,
+      trackingType: seed.trackingType,
+      category: seed.trackingType,
+      instructions: [],
+      secondaryMuscles: [],
+      isCustom: false,
+      source: 'ironlog-canonical',
+    }));
+    signatureSet.add(signature);
+  });
+
+  return result;
 }
 
 function buildFromBundled() {
@@ -104,7 +292,7 @@ function buildFromBundled() {
       hasBundledYoutubeLink: youtube.hasBundledYoutubeLink,
     };
   });
-  return mergeSupplementalExercises(bundled, EXERCISE_LIBRARY_ADDITIONS);
+  return applyCanonicalNormalizationAndDedup(mergeSupplementalExercises(bundled, EXERCISE_LIBRARY_ADDITIONS));
 }
 
 function normalizeSupplementalExercise(ex) {
@@ -206,22 +394,24 @@ function mergeWithDB(bundled, dbExercises) {
       });
     }
   }
-  return merged;
+  return applyCanonicalNormalizationAndDedup(merged);
 }
 
 function buildIndex(exercises) {
   return exercises.map(ex => {
     const primaryMuscles = normalizePrimaryMuscles(ex);
     const youtube = resolveExerciseYoutubeMeta(ex);
+    const canonical = resolveCanonicalExerciseName(ex.name);
     return {
       id: ex.id,
-      name: ex.name,
+      name: canonical,
+      aliases: Array.from(new Set([...(toArray(ex.aliases)), ex.name].filter(Boolean))),
       primaryMuscles,
       primaryMuscle: primaryMuscles[0] || null,
       secondaryMuscles: toArray(ex.secondaryMuscles),
       equipment: ex.equipment,
       category: normalizeCategory(ex.category || ex.trackingType),
-      trackingType: ex.trackingType || null,
+      trackingType: normalizeTrackingType(ex.trackingType, canonical, ex.category) || null,
       bodyPart: ex.bodyPart || null,
       target: ex.target || null,
       level: ex.level,
@@ -241,6 +431,7 @@ function shouldRebuildIndex(index) {
   let withMuscles = 0;
   let withNonStrengthCategory = 0;
   let withYoutubeFields = 0;
+  let withAliases = 0;
 
   index.forEach((entry) => {
     const muscles = normalizePrimaryMuscles(entry);
@@ -248,16 +439,22 @@ function shouldRebuildIndex(index) {
     const category = normalizeCategory(entry.category || entry.trackingType);
     if (category !== 'strength') withNonStrengthCategory += 1;
     if (entry.youtubeLink || entry.youtubeShortsLink || entry.youtubeSearchQuery) withYoutubeFields += 1;
+    if (Array.isArray(entry.aliases) && entry.aliases.length) withAliases += 1;
   });
 
   const muscleCoverage = withMuscles / index.length;
   const variedCategories = withNonStrengthCategory / index.length;
   const youtubeCoverage = withYoutubeFields / index.length;
+  const aliasCoverage = withAliases / index.length;
   const indexIds = new Set(index.map((entry) => entry.id));
   const supplementalCoverage = EXERCISE_LIBRARY_ADDITIONS.filter((entry) => indexIds.has(entry.id)).length;
 
   // Rebuild stale index generated from old schema where muscles were lost.
-  return muscleCoverage < 0.5 || variedCategories < 0.02 || youtubeCoverage < 0.95 || supplementalCoverage < Math.max(8, Math.floor(EXERCISE_LIBRARY_ADDITIONS.length * 0.5));
+  return muscleCoverage < 0.5
+    || variedCategories < 0.02
+    || youtubeCoverage < 0.95
+    || aliasCoverage < 0.6
+    || supplementalCoverage < Math.max(8, Math.floor(EXERCISE_LIBRARY_ADDITIONS.length * 0.5));
 }
 
 async function rebuildLibraryAndIndexFromBundled() {
@@ -333,29 +530,37 @@ export async function getExerciseById(id) {
   const raw = await AsyncStorage.getItem(LIBRARY_KEY);
   if (!raw) return null;
   const lib = JSON.parse(raw);
-  return lib.find(ex => ex.id === id) || null;
+  const canonicalId = LEGACY_EXERCISE_ID_ALIASES[id] || id;
+  return lib.find((exercise) => exercise.id === canonicalId || toArray(exercise.aliases).includes(id)) || null;
 }
 
 export async function getExerciseByName(name) {
   const raw = await AsyncStorage.getItem(LIBRARY_KEY);
   if (!raw) return null;
   const lib = JSON.parse(raw);
-  return lib.find(ex => ex.name === name) || null;
+  const canonical = resolveCanonicalExerciseName(name);
+  const key = normalizeAliasKey(canonical);
+  return lib.find((exercise) => {
+    if (resolveCanonicalExerciseName(exercise.name) === canonical) return true;
+    const aliases = toArray(exercise.aliases).map((alias) => normalizeAliasKey(alias));
+    return aliases.includes(key);
+  }) || null;
 }
 
 export async function saveCustomExercise(exercise) {
+  const normalizedExercise = canonicalizeExerciseRecord({ ...exercise, isCustom: true });
   const raw = await AsyncStorage.getItem('@ironlog/customExercises');
   const custom = raw ? JSON.parse(raw) : [];
-  const idx = custom.findIndex(e => e.id === exercise.id);
-  if (idx >= 0) custom[idx] = exercise;
-  else custom.push(exercise);
+  const idx = custom.findIndex(e => e.id === normalizedExercise.id);
+  if (idx >= 0) custom[idx] = normalizedExercise;
+  else custom.push(normalizedExercise);
 
   // Also update main library and index
   const libRaw = await AsyncStorage.getItem(LIBRARY_KEY);
   const lib = libRaw ? JSON.parse(libRaw) : [];
-  const libIdx = lib.findIndex(e => e.id === exercise.id);
-  if (libIdx >= 0) lib[libIdx] = exercise;
-  else lib.push(exercise);
+  const libIdx = lib.findIndex(e => e.id === normalizedExercise.id);
+  if (libIdx >= 0) lib[libIdx] = normalizedExercise;
+  else lib.push(normalizedExercise);
 
   const index = buildIndex(lib);
   await AsyncStorage.multiSet([
@@ -363,7 +568,7 @@ export async function saveCustomExercise(exercise) {
     [LIBRARY_KEY, JSON.stringify(lib)],
     [INDEX_KEY, JSON.stringify(index)],
   ]);
-  upsertCustomExerciseToDb(exercise).catch((error) => {
+  upsertCustomExerciseToDb(normalizedExercise).catch((error) => {
     console.warn('Custom exercise SQLite upsert failed:', error);
   });
   return index;

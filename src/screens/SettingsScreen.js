@@ -86,6 +86,7 @@ function formatDecisionLabel(entry = {}) {
     daily_cap: 'Daily cap reached',
     weekly_cap: 'Weekly cap reached',
     cooldown_or_topic_gate: 'Cooldown is active',
+    already_actioned: 'Action already completed',
     permission_denied: 'Notification permission is off',
   };
   if (entry?.outcome === 'suppressed') {

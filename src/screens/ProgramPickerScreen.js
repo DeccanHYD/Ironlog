@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
 import { AppContext } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
-import { PROGRAM_TEMPLATES, PROGRAM_TEMPLATE_CATEGORIES } from '../data/programTemplates';
+import { PROGRAM_TEMPLATES, PROGRAM_TEMPLATE_CATEGORIES, resolveProgramTemplateId } from '../data/programTemplates';
 import CustomAlert from '../components/CustomAlert';
 import { triggerHaptic } from '../services/hapticsEngine';
 
@@ -36,7 +36,7 @@ export default function ProgramPickerScreen({ navigation, route }) {
   }, [activeCategory, groupedTemplates]);
 
   useEffect(() => {
-    const recommendedTemplateId = route?.params?.recommendedTemplateId;
+    const recommendedTemplateId = resolveProgramTemplateId(route?.params?.recommendedTemplateId);
     if (!recommendedTemplateId) return;
     const recommended = PROGRAM_TEMPLATES.find((template) => template.id === recommendedTemplateId);
     if (!recommended) return;
@@ -55,6 +55,13 @@ export default function ProgramPickerScreen({ navigation, route }) {
     const newPlan = {
       id: genId(),
       name: template.name,
+      templateId: template.id,
+      templateMetadata: {
+        progressionModel: template.progressionModel,
+        deloadProtocol: template.deloadProtocol,
+        effortTarget: template.effortTarget,
+        blockDurationWeeks: template.blockDurationWeeks || null,
+      },
       days: template.days.map((d, i) => ({
         id: genId(),
         label: `D${i + 1}`,
@@ -144,6 +151,7 @@ export default function ProgramPickerScreen({ navigation, route }) {
                 <Text style={[s.cardDesc, { color: colors.muted }]}>{template.description}</Text>
                 <Text style={[s.cardMeta, { color: colors.subtext }]}>{template.goal}</Text>
                 <Text style={[s.cardMeta, { color: colors.subtext }]}>{template.experienceLevel} · {template.days.length} days</Text>
+                <Text style={[s.cardMeta, { color: colors.subtext }]}>{template.progressionModel} · {template.effortTarget}</Text>
                 <View style={s.dayPills}>
                   {template.days.slice(0, 4).map((d, i) => (
                     <View key={i} style={[s.dayPill, { backgroundColor: DAY_COLORS[i % DAY_COLORS.length] + '22', borderColor: DAY_COLORS[i % DAY_COLORS.length] + '55' }]}>

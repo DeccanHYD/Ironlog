@@ -5,6 +5,7 @@ import { AppContext } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
 import { computeConsistencyMetrics } from '../domain/intelligence/performanceEngine';
 import { buildAdaptiveDayTargets, buildProgramInsights } from '../domain/intelligence/programIntelligenceEngine';
+import { formatWeightFromKg } from '../utils/weightUnits';
 
 function getWeekHitDays(history = []) {
   const weekAgo = Date.now() - (7 * 86400000);
@@ -22,6 +23,7 @@ export default function ProgramInsightsScreen({ navigation }) {
   const activePlan = plans?.[0] || null;
   const weekHitDays = useMemo(() => getWeekHitDays(history), [history]);
   const goalMode = activePlan?.goalMode || settings?.goalMode || 'hypertrophy';
+  const weightUnit = settings?.weightUnit || 'kg';
 
   const programInsights = useMemo(() => buildProgramInsights({
     activePlan,
@@ -127,7 +129,9 @@ export default function ProgramInsightsScreen({ navigation }) {
                 </Text>
               </View>
               <Text style={[s.targetVal, { color: target.action === 'reduce' ? '#FF8E8E' : colors.accent }]}>
-                {target.targetWeight}kg x {target.targetReps}
+                {Number(target.targetWeight || 0) > 0
+                  ? `${formatWeightFromKg(target.targetWeight, weightUnit)} x ${Math.max(1, Number(target.targetReps || 0))}`
+                  : `BW x ${Math.max(1, Number(target.targetReps || 0))}`}
               </Text>
             </View>
           ))

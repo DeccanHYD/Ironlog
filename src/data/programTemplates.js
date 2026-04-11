@@ -57,8 +57,8 @@ const ACCESSORY_POOL = {
   ],
   CONDITIONING: [
     ex('Air Bike', 'air_bike', 8, 20, 'Conditioning'),
-    ex('Row Erg', 'row-erg', 6, 250, 'Conditioning'),
-    ex('Battle Ropes', 'battle-ropes', 6, 30, 'Conditioning'),
+    ex('Running', 'running', 4, 400, 'Conditioning'),
+    ex('Spider Crawl', 'spider_crawl', 4, 20, 'Bodyweight'),
     ex('Plank', 'plank', 4, 60, 'Bodyweight'),
     ex('Hanging Leg Raise', 'hanging-leg-raise', 3, 12, 'Bodyweight'),
   ],
@@ -146,6 +146,18 @@ const DAY_LIBRARY = {
     ex('Seated Cable Row', 'seated-cable-row', 3, 10, 'Cable'),
     ex('Tricep Pushdown', 'tricep-pushdown', 2, 12, 'Cable'),
   ]),
+  MINIMAL_FULL_BODY_A: day('MINIMAL A', 'Efficient full body', [
+    ex('Barbell Squat', 'barbell-squat', 3, 5, 'Barbell'),
+    ex('Barbell Bench Press', 'barbell-bench-press', 3, 6, 'Barbell'),
+    ex('Seated Cable Row', 'seated-cable-row', 3, 8, 'Cable'),
+    ex('Plank', 'plank', 3, 45, 'Bodyweight'),
+  ]),
+  MINIMAL_FULL_BODY_B: day('MINIMAL B', 'Efficient full body', [
+    ex('Romanian Deadlift', 'romanian-deadlift', 3, 6, 'Barbell'),
+    ex('Overhead Press', 'overhead-press', 3, 6, 'Barbell'),
+    ex('Lat Pulldown', 'lat-pulldown', 3, 8, 'Cable'),
+    ex('Hanging Leg Raise', 'hanging-leg-raise', 3, 12, 'Bodyweight'),
+  ]),
   UPPER_A: day('UPPER A', 'Upper split', [
     ex('Barbell Bench Press', 'barbell-bench-press', 4, 6, 'Barbell'),
     ex('Barbell Row', 'barbell-row', 4, 6, 'Barbell'),
@@ -177,10 +189,10 @@ const DAY_LIBRARY = {
     ex('Barbell Row', 'barbell-row', 3, 6, 'Barbell'),
   ]),
   LOWER_POWER: day('LOWER POWER', 'Strength', [
-    ex('Barbell Squat', 'barbell-squat', 4, 5, 'Barbell'),
-    ex('Deadlift', 'deadlift', 3, 4, 'Barbell'),
-    ex('Romanian Deadlift', 'romanian-deadlift', 3, 6, 'Barbell'),
-    ex('Calf Raise', 'calf-raise', 3, 12, 'Machine'),
+    ex('Barbell Squat', 'barbell-squat', 4, 4, 'Barbell'),
+    ex('Deadlift', 'deadlift', 2, 3, 'Barbell'),
+    ex('Leg Curl', 'leg-curl', 3, 10, 'Machine'),
+    ex('Standing Calf Raise', 'standing-calf-raise', 3, 12, 'Machine'),
   ]),
   BARBELL_A: day('WORKOUT A', 'Linear progression', [
     ex('Barbell Squat', 'barbell-squat', 3, 5, 'Barbell'),
@@ -258,28 +270,29 @@ const DAY_LIBRARY = {
     ex('Overhead Tricep Extension', 'overhead-tricep-extension', 3, 12, 'Cable'),
   ]),
   CONDITIONING_DAY: day('CONDITIONING', 'Engine', [
-    ex('Air Bike', 'air_bike', 8, 20, 'Conditioning'),
-    ex('Spider Crawl', 'spider_crawl', 4, 20, 'Bodyweight'),
-    ex('Reverse Crunch', 'reverse_crunch', 4, 15, 'Bodyweight'),
+    ex('Air Bike', 'air_bike', 6, 20, 'Conditioning'),
+    ex('Reverse Crunch', 'reverse_crunch', 3, 15, 'Bodyweight'),
     ex('Plank', 'plank', 4, 45, 'Bodyweight'),
   ]),
   CALI_PUSH: day('CALI PUSH', 'Calisthenics', [
-    ex('Push-Up', 'push-up', 4, 12, 'Bodyweight'),
-    ex('Dips', 'dips', 4, 8, 'Bodyweight'),
+    ex('Push-Up', 'push-up', 4, 10, 'Bodyweight'),
+    ex('Dips', 'dips', 3, 8, 'Bodyweight'),
+    ex('Push-Up', 'push-up', 3, 8, 'Bodyweight'),
     ex('Plank', 'plank', 4, 45, 'Bodyweight'),
-    ex('Sit-Up', 'situp', 3, 15, 'Bodyweight'),
+    ex('Sit-Up', 'situp', 3, 12, 'Bodyweight'),
   ]),
   CALI_PULL: day('CALI PULL', 'Calisthenics', [
     ex('Pull-Up', 'pull-up', 4, 6, 'Bodyweight'),
-    ex('Chin-Up', 'chin-up', 4, 6, 'Bodyweight'),
+    ex('Inverted Row', 'inverted-row', 4, 10, 'Bodyweight'),
+    ex('Single-Leg Romanian Deadlift', 'single-leg-romanian-deadlift', 3, 10, 'Bodyweight'),
     ex('Hanging Leg Raise', 'hanging_leg_raise', 3, 10, 'Bodyweight'),
-    ex('Reverse Crunch', 'reverse_crunch', 3, 15, 'Bodyweight'),
+    ex('Reverse Crunch', 'reverse_crunch', 3, 12, 'Bodyweight'),
   ]),
   CALI_MIXED: day('CALI MIXED', 'Calisthenics', [
-    ex('Push-Up', 'push-up', 4, 10, 'Bodyweight'),
-    ex('Pull-Up', 'pull-up', 4, 5, 'Bodyweight'),
-    ex('Spider Crawl', 'spider_crawl', 3, 20, 'Bodyweight'),
-    ex('Plank', 'plank', 3, 60, 'Bodyweight'),
+    ex('Bodyweight Squat', 'bodyweight-squat', 4, 15, 'Bodyweight'),
+    ex('Split Squat', 'split-squat', 3, 10, 'Bodyweight'),
+    ex('Glute Bridge', 'glute-bridge', 3, 15, 'Bodyweight'),
+    ex('Standing Calf Raise', 'standing-calf-raise', 4, 15, 'Bodyweight'),
   ]),
   HOME_DB_UPPER: day('HOME UPPER', 'Dumbbell only', [
     ex('Dumbbell Bench Press', 'dumbbell-bench-press', 4, 10, 'Dumbbell'),
@@ -289,20 +302,86 @@ const DAY_LIBRARY = {
   ]),
   HOME_DB_LOWER: day('HOME LOWER', 'Dumbbell only', [
     ex('Goblet Squat', 'goblet-squat', 4, 12, 'Dumbbell'),
-    ex('Dumbbell Romanian Deadlift', 'dumbbell-rdl', 4, 12, 'Dumbbell'),
-    ex('Bulgarian Split Squat', 'bulgarian-split-squat', 3, 10, 'Dumbbell'),
+    ex('Romanian Deadlift', 'romanian-deadlift', 4, 12, 'Dumbbell'),
+    ex('Walking Lunge', 'walking-lunge', 3, 10, 'Dumbbell'),
     ex('Plank', 'plank', 3, 60, 'Bodyweight'),
   ]),
+  HOME_BENCH_PUSH: day('HOME PUSH', 'Dumbbell + bench', [
+    ex('Dumbbell Bench Press', 'dumbbell-bench-press', 4, 10, 'Dumbbell'),
+    ex('Incline Dumbbell Press', 'incline-dumbbell-press', 4, 10, 'Dumbbell'),
+    ex('Dumbbell Shoulder Press', 'dumbbell-shoulder-press', 3, 10, 'Dumbbell'),
+    ex('Lateral Raise', 'lateral-raise', 3, 15, 'Dumbbell'),
+  ]),
+  HOME_BENCH_PULL: day('HOME PULL', 'Dumbbell + bench', [
+    ex('One-Arm Dumbbell Row', 'one-arm-dumbbell-row', 4, 10, 'Dumbbell'),
+    ex('One-Arm Dumbbell Row', 'one-arm-dumbbell-row', 3, 12, 'Dumbbell'),
+    ex('Hammer Curl', 'hammer-curl', 3, 12, 'Dumbbell'),
+    ex('Incline Dumbbell Curl', 'incline-dumbbell-curl', 3, 12, 'Dumbbell'),
+  ]),
+  GLUTE_QUAD_FOCUS: day('GLUTE + QUAD', 'Lower focus', [
+    ex('Barbell Squat', 'barbell-squat', 4, 6, 'Barbell'),
+    ex('Leg Press', 'leg-press', 3, 10, 'Machine'),
+    ex('Walking Lunge', 'walking-lunge', 3, 10, 'Dumbbell'),
+    ex('Leg Extension', 'leg-extension', 2, 15, 'Machine'),
+  ]),
+  GLUTE_HAM_FOCUS: day('GLUTE + HAM', 'Lower focus', [
+    ex('Romanian Deadlift', 'romanian-deadlift', 4, 8, 'Barbell'),
+    ex('Hip Thrust', 'hip-thrust', 4, 8, 'Barbell'),
+    ex('Leg Curl', 'leg-curl', 3, 12, 'Machine'),
+    ex('Standing Calf Raise', 'standing-calf-raise', 4, 12, 'Machine'),
+  ]),
+  GLUTE_PUMP_FOCUS: day('GLUTE PUMP', 'Lower focus', [
+    ex('Hack Squat', 'hack-squat', 3, 10, 'Machine'),
+    ex('Walking Lunge', 'walking-lunge', 3, 12, 'Dumbbell'),
+    ex('Hip Thrust', 'hip-thrust', 3, 12, 'Barbell'),
+    ex('Leg Curl', 'leg-curl', 2, 15, 'Machine'),
+  ]),
+  ARNOLD_CHEST_BACK_HEAVY: day('CHEST + BACK (HEAVY)', 'Arnold', [
+    ex('Barbell Bench Press', 'barbell-bench-press', 4, 6, 'Barbell'),
+    ex('Barbell Row', 'barbell-row', 4, 6, 'Barbell'),
+    ex('Incline Dumbbell Press', 'incline-dumbbell-press', 3, 8, 'Dumbbell'),
+    ex('Lat Pulldown', 'lat-pulldown', 3, 8, 'Cable'),
+  ]),
+  ARNOLD_SHOULDERS_ARMS_HEAVY: day('SHOULDERS + ARMS (HEAVY)', 'Arnold', [
+    ex('Overhead Press', 'overhead-press', 4, 6, 'Barbell'),
+    ex('Lateral Raise', 'lateral-raise', 3, 12, 'Dumbbell'),
+    ex('Barbell Curl', 'barbell-curl', 3, 8, 'Barbell'),
+    ex('Skull Crusher', 'skull-crusher', 3, 8, 'Barbell'),
+  ]),
+  ARNOLD_LEGS_HEAVY: day('LEGS (HEAVY)', 'Arnold', [
+    ex('Barbell Squat', 'barbell-squat', 4, 5, 'Barbell'),
+    ex('Romanian Deadlift', 'romanian-deadlift', 3, 8, 'Barbell'),
+    ex('Leg Press', 'leg-press', 3, 10, 'Machine'),
+    ex('Standing Calf Raise', 'standing-calf-raise', 4, 12, 'Machine'),
+  ]),
+  ARNOLD_CHEST_BACK_VOLUME: day('CHEST + BACK (VOLUME)', 'Arnold', [
+    ex('Incline Dumbbell Press', 'incline-dumbbell-press', 4, 10, 'Dumbbell'),
+    ex('Seated Cable Row', 'seated-cable-row', 4, 10, 'Cable'),
+    ex('Cable Fly', 'cable-fly', 3, 12, 'Cable'),
+    ex('Face Pull', 'face-pull', 3, 15, 'Cable'),
+  ]),
+  ARNOLD_SHOULDERS_ARMS_VOLUME: day('SHOULDERS + ARMS (VOLUME)', 'Arnold', [
+    ex('Dumbbell Shoulder Press', 'dumbbell-shoulder-press', 3, 10, 'Dumbbell'),
+    ex('Lateral Raise', 'lateral-raise', 4, 15, 'Dumbbell'),
+    ex('Hammer Curl', 'hammer-curl', 3, 12, 'Dumbbell'),
+    ex('Tricep Pushdown', 'tricep-pushdown', 3, 12, 'Cable'),
+  ]),
+  ARNOLD_LEGS_VOLUME: day('LEGS (VOLUME)', 'Arnold', [
+    ex('Hack Squat', 'hack-squat', 4, 10, 'Machine'),
+    ex('Leg Curl', 'leg-curl', 3, 12, 'Machine'),
+    ex('Leg Extension', 'leg-extension', 3, 15, 'Machine'),
+    ex('Standing Calf Raise', 'standing-calf-raise', 4, 15, 'Machine'),
+  ]),
   BAND_UPPER: day('BAND UPPER', 'Band only', [
-    ex('Band Chest Press', 'band-chest-press', 4, 15, 'Resistance Band'),
+    ex('Push-Up', 'push-up', 4, 15, 'Bodyweight'),
     ex('Band Row', 'band-row', 4, 15, 'Resistance Band'),
-    ex('Band Overhead Press', 'band-overhead-press', 4, 12, 'Resistance Band'),
+    ex('Push-Up', 'push-up', 4, 12, 'Bodyweight'),
     ex('Band Curl', 'band-curl', 3, 15, 'Resistance Band'),
   ]),
   BAND_LOWER: day('BAND LOWER', 'Band only', [
     ex('Band Squat', 'band-squat', 4, 15, 'Resistance Band'),
-    ex('Band Romanian Deadlift', 'band-rdl', 4, 15, 'Resistance Band'),
-    ex('Band Glute Bridge', 'band-glute-bridge', 4, 15, 'Resistance Band'),
+    ex('Band Squat', 'band-squat', 4, 15, 'Resistance Band'),
+    ex('Glute Bridge', 'glute-bridge', 4, 15, 'Bodyweight'),
     ex('Band Calf Raise', 'band-calf-raise', 4, 20, 'Resistance Band'),
   ]),
 };
@@ -319,25 +398,27 @@ const BLUEPRINTS = {
   PPL_5: ['PUSH_A', 'PULL_A', 'LEGS_A', 'PUSH_B', 'PULL_B'],
   PPL_6: ['PUSH_A', 'PULL_A', 'LEGS_A', 'PUSH_B', 'PULL_B', 'LEGS_B'],
   BRO_SPLIT_5: ['CHEST_DAY', 'BACK_DAY', 'SHOULDERS_DAY', 'ARMS_DAY', 'LEGS_A'],
-  ARNOLD_6: ['CHEST_DAY', 'BACK_DAY', 'SHOULDERS_DAY', 'ARMS_DAY', 'LEGS_A', 'LEGS_B'],
+  ARNOLD_6: ['ARNOLD_CHEST_BACK_HEAVY', 'ARNOLD_SHOULDERS_ARMS_HEAVY', 'ARNOLD_LEGS_HEAVY', 'ARNOLD_CHEST_BACK_VOLUME', 'ARNOLD_SHOULDERS_ARMS_VOLUME', 'ARNOLD_LEGS_VOLUME'],
   AESTHETIC_5: ['UPPER_B', 'LOWER_A', 'SHOULDERS_DAY', 'BACK_DAY', 'ARMS_DAY'],
   RECOMP_5: ['UPPER_A', 'LOWER_A', 'CONDITIONING_DAY', 'UPPER_B', 'LOWER_B'],
   UPPER_BIAS_4: ['UPPER_POWER', 'LOWER_A', 'UPPER_B', 'SHOULDERS_DAY'],
   LOWER_FOCUS_4: ['LOWER_A', 'UPPER_B', 'LOWER_B', 'LEGS_B'],
-  GLUTES_LEGS_5: ['LOWER_A', 'LOWER_B', 'LEGS_A', 'UPPER_B', 'LEGS_B'],
+  GLUTES_LEGS_5: ['GLUTE_QUAD_FOCUS', 'UPPER_B', 'GLUTE_HAM_FOCUS', 'GLUTE_PUMP_FOCUS'],
   ATHLETIC_LEGS_4: ['LOWER_POWER', 'CONDITIONING_DAY', 'LEGS_A', 'UPPER_A'],
   ARM_SPECIALIZATION_5: ['ARMS_DAY', 'UPPER_A', 'PULL_B', 'ARMS_DAY', 'LOWER_A'],
   CHEST_SPECIALIZATION_5: ['CHEST_DAY', 'UPPER_A', 'LOWER_A', 'CHEST_DAY', 'UPPER_B'],
   BACK_SPECIALIZATION_5: ['BACK_DAY', 'PULL_A', 'LOWER_A', 'BACK_DAY', 'ARMS_DAY'],
   SHOULDER_SPECIALIZATION_5: ['SHOULDERS_DAY', 'UPPER_A', 'LOWER_A', 'SHOULDERS_DAY', 'PUSH_B'],
   HOME_DB_ONLY_4: ['HOME_DB_UPPER', 'HOME_DB_LOWER', 'HOME_DB_UPPER', 'HOME_DB_LOWER'],
-  HOME_DB_BENCH_4: ['HOME_DB_UPPER', 'HOME_DB_LOWER', 'PUSH_B', 'PULL_B'],
+  HOME_DB_BENCH_4: ['HOME_BENCH_PUSH', 'HOME_DB_LOWER', 'HOME_BENCH_PULL', 'HOME_DB_LOWER'],
   BAND_ONLY_4: ['BAND_UPPER', 'BAND_LOWER', 'BAND_UPPER', 'BAND_LOWER'],
   CALISTHENICS_BEGINNER_3: ['CALI_PUSH', 'CALI_PULL', 'CALI_MIXED'],
   CALISTHENICS_STRENGTH_4: ['CALI_PUSH', 'CALI_PULL', 'CALI_MIXED', 'CALI_PULL'],
   FAT_LOSS_HYBRID_5: ['FULL_BODY_A', 'CONDITIONING_DAY', 'FULL_BODY_B', 'CONDITIONING_DAY', 'UPPER_B'],
+  INTERFERENCE_AWARE_RECOMP_5: ['UPPER_A', 'CONDITIONING_DAY', 'LOWER_B', 'UPPER_B', 'CONDITIONING_DAY'],
   LIFT_3_CARDIO_2: ['FULL_BODY_A', 'CONDITIONING_DAY', 'FULL_BODY_B', 'CONDITIONING_DAY', 'FULL_BODY_C'],
-  ATHLETIC_CONDITIONING_5: ['LOWER_POWER', 'CONDITIONING_DAY', 'UPPER_POWER', 'CONDITIONING_DAY', 'UPPER_B'],
+  ATHLETIC_CONDITIONING_5: ['UPPER_POWER', 'CONDITIONING_DAY', 'LOWER_POWER', 'UPPER_B', 'CONDITIONING_DAY'],
+  MINIMAL_FULL_BODY_3: ['MINIMAL_FULL_BODY_A', 'MINIMAL_FULL_BODY_B', 'MINIMAL_FULL_BODY_A'],
 };
 
 const buildDays = (blueprintKey, allowedEquipment = []) => cloneDays((BLUEPRINTS[blueprintKey] || []).map((key) => DAY_LIBRARY[key]).filter(Boolean), allowedEquipment);
@@ -408,8 +489,49 @@ function deriveSpecializationType(template) {
   return 'general';
 }
 
+function deriveProgressionModel(template) {
+  const category = String(template.category || '').toUpperCase();
+  if (category === 'STRENGTH') return 'linear_progression_with_backoff';
+  if (category === 'FAT_LOSS_CONDITIONING') return 'double_progression_conservative';
+  return 'double_progression';
+}
+
+function deriveDeloadProtocol(template) {
+  if (template.daysPerWeek >= 6) return 'every_4_6_weeks_or_2_consecutive_underperformances';
+  if (template.daysPerWeek >= 5) return 'every_5_7_weeks_or_2_consecutive_underperformances';
+  return 'every_6_8_weeks_or_3_consecutive_underperformances';
+}
+
+function deriveEffortTarget(template) {
+  const category = String(template.category || '').toUpperCase();
+  if (category === 'STRENGTH') return 'RIR 1-3 on compounds, RIR 2-3 on accessories';
+  return 'RIR 1-3 on working sets, avoid failure on compounds';
+}
+
+function deriveBlockDurationWeeks(template) {
+  const category = String(template.category || '').toUpperCase();
+  if (category === 'SPECIALIZATION') return 4;
+  if (category === 'FAT_LOSS_CONDITIONING') return 6;
+  return null;
+}
+
+function deriveGuardrailNotes(template) {
+  const category = String(template.category || '').toUpperCase();
+  if (category === 'SPECIALIZATION') {
+    return 'Prioritize target muscle volume, keep non-target work at maintenance, then pivot after block.';
+  }
+  if (category === 'FAT_LOSS_CONDITIONING') {
+    return 'Separate hard conditioning from heavy lower sessions when possible and scale intervals by recovery.';
+  }
+  if (category === 'HOME_MINIMAL') {
+    return 'Only use equipment listed in the plan header.';
+  }
+  return 'Progress by quality reps first, then load. Deload when performance stalls.';
+}
+
 const DEFINITIONS = [
   { id: 'full_body_beginner_3x', name: 'Full Body Beginner (3x/week)', category: 'BEGINNER', description: 'Simple full-body progression.', goal: 'Build base strength and consistency', experienceLevel: 'Beginner', daysPerWeek: 3, equipment: ['Barbell', 'Dumbbell', 'Cable', 'Machine'], isFeatured: true, sortOrder: 110, blueprint: 'FULL_BODY_BEGINNER_3' },
+  { id: 'minimalist_full_body_23', name: 'Minimalist Full Body (2-3 Day)', category: 'BEGINNER', description: 'Time-efficient full-body essentials.', goal: 'Stay consistent on a busy schedule', experienceLevel: 'Beginner', daysPerWeek: 3, equipment: ['Barbell', 'Cable', 'Bodyweight'], isFeatured: true, sortOrder: 115, blueprint: 'MINIMAL_FULL_BODY_3' },
   { id: 'upper_lower_beginner_4x', name: 'Upper / Lower Beginner (4x/week)', category: 'BEGINNER', description: 'Balanced upper/lower split.', goal: 'Learn movement patterns', experienceLevel: 'Beginner', daysPerWeek: 4, equipment: ['Barbell', 'Dumbbell', 'Cable', 'Machine'], isFeatured: true, sortOrder: 120, blueprint: 'UPPER_LOWER_4' },
   { id: 'bodyweight_beginner', name: 'Bodyweight Beginner', category: 'BEGINNER', description: 'No-gym bodyweight basics.', goal: 'Build movement control', experienceLevel: 'Beginner', daysPerWeek: 3, equipment: ['Bodyweight'], isFeatured: false, sortOrder: 130, blueprint: 'BODYWEIGHT_3' },
 
@@ -428,7 +550,7 @@ const DEFINITIONS = [
   { id: 'lean_physique_recomp', name: 'Lean Physique Recomp Program', category: 'AESTHETIC', description: 'Lifting + conditioning recomposition.', goal: 'Build muscle while cutting fat', experienceLevel: 'Intermediate', daysPerWeek: 5, equipment: ['Barbell', 'Dumbbell', 'Cable', 'Machine', 'Conditioning'], isFeatured: true, sortOrder: 420, blueprint: 'RECOMP_5' },
   { id: 'upper_body_bias_program', name: 'Upper Body Bias Program', category: 'AESTHETIC', description: 'Upper-focused with lower maintenance.', goal: 'Bring up upper body faster', experienceLevel: 'Intermediate', daysPerWeek: 4, equipment: ['Barbell', 'Dumbbell', 'Cable', 'Machine'], isFeatured: false, sortOrder: 430, blueprint: 'UPPER_BIAS_4' },
 
-  { id: 'glute_legs_focus_45', name: 'Glute & Legs Focus (4-5x/week)', category: 'LOWER_BODY_GLUTES', description: 'Lower-body dominant volume.', goal: 'Prioritize glutes and legs', experienceLevel: 'Intermediate', daysPerWeek: 5, equipment: ['Barbell', 'Machine', 'Dumbbell'], isFeatured: true, sortOrder: 510, blueprint: 'GLUTES_LEGS_5' },
+  { id: 'glute_legs_focus_45', name: 'Glute & Legs Focus (4-5x/week)', category: 'LOWER_BODY_GLUTES', description: 'Lower-body dominant volume.', goal: 'Prioritize glutes and legs', experienceLevel: 'Intermediate', daysPerWeek: 4, equipment: ['Barbell', 'Machine', 'Dumbbell'], isFeatured: true, sortOrder: 510, blueprint: 'GLUTES_LEGS_5' },
   { id: 'womens_lower_body_focus', name: "Women's Lower Body Focus", category: 'LOWER_BODY_GLUTES', description: 'Lower-body emphasis with upper support.', goal: 'Lower-body growth and strength', experienceLevel: 'Beginner', daysPerWeek: 4, equipment: ['Barbell', 'Machine', 'Dumbbell'], isFeatured: true, sortOrder: 520, blueprint: 'LOWER_FOCUS_4' },
   { id: 'athletic_legs_program', name: 'Athletic Legs Program', category: 'LOWER_BODY_GLUTES', description: 'Power + conditioning lower split.', goal: 'Athletic lower-body performance', experienceLevel: 'Intermediate', daysPerWeek: 4, equipment: ['Barbell', 'Machine', 'Conditioning'], isFeatured: false, sortOrder: 530, blueprint: 'ATHLETIC_LEGS_4' },
 
@@ -441,10 +563,10 @@ const DEFINITIONS = [
   { id: 'home_dumbbell_bench_program', name: 'Home Dumbbell + Bench Program', category: 'HOME_MINIMAL', description: 'Home split with bench options.', goal: 'Expand home exercise variety', experienceLevel: 'All Levels', daysPerWeek: 4, equipment: ['Dumbbell', 'Bench', 'Bodyweight'], isFeatured: true, sortOrder: 720, blueprint: 'HOME_DB_BENCH_4' },
   { id: 'resistance_band_only_program', name: 'Resistance Band Only Program', category: 'HOME_MINIMAL', description: 'Portable resistance-band routine.', goal: 'Minimal-equipment consistency', experienceLevel: 'All Levels', daysPerWeek: 4, equipment: ['Resistance Band', 'Bodyweight'], isFeatured: false, sortOrder: 730, blueprint: 'BAND_ONLY_4' },
 
-  { id: 'bodyweight_calisthenics_beginner', name: 'Bodyweight / Calisthenics Beginner', category: 'BODYWEIGHT_CALISTHENICS', description: 'Entry-level calisthenics structure.', goal: 'Build calisthenics base', experienceLevel: 'Beginner', daysPerWeek: 3, equipment: ['Bodyweight'], isFeatured: true, sortOrder: 810, blueprint: 'CALISTHENICS_BEGINNER_3' },
   { id: 'calisthenics_strength_base', name: 'Calisthenics Strength Base', category: 'BODYWEIGHT_CALISTHENICS', description: 'Bodyweight strength progression.', goal: 'Increase bodyweight strength', experienceLevel: 'Intermediate', daysPerWeek: 4, equipment: ['Bodyweight'], isFeatured: false, sortOrder: 820, blueprint: 'CALISTHENICS_STRENGTH_4' },
 
   { id: 'fat_loss_conditioning_lifting_hybrid', name: 'Fat Loss Conditioning + Lifting Hybrid', category: 'FAT_LOSS_CONDITIONING', description: 'Alternating lift and conditioning days.', goal: 'Lose fat while preserving strength', experienceLevel: 'Intermediate', daysPerWeek: 5, equipment: ['Barbell', 'Dumbbell', 'Conditioning', 'Bodyweight'], isFeatured: true, sortOrder: 910, blueprint: 'FAT_LOSS_HYBRID_5' },
+  { id: 'interference_aware_recomp', name: 'Interference-Aware Fat Loss / Recomp', category: 'FAT_LOSS_CONDITIONING', description: 'Recovery-aware lifting and conditioning split.', goal: 'Recomp without crushing lower-body recovery', experienceLevel: 'Intermediate', daysPerWeek: 5, equipment: ['Barbell', 'Dumbbell', 'Conditioning', 'Bodyweight', 'Cable'], isFeatured: true, sortOrder: 915, blueprint: 'INTERFERENCE_AWARE_RECOMP_5' },
   { id: 'lift_3day_cardio_2day', name: '3-Day Lift + 2-Day Cardio Plan', category: 'FAT_LOSS_CONDITIONING', description: 'Simple split with cardio built in.', goal: 'Improve body composition', experienceLevel: 'All Levels', daysPerWeek: 5, equipment: ['Barbell', 'Conditioning', 'Bodyweight'], isFeatured: true, sortOrder: 920, blueprint: 'LIFT_3_CARDIO_2' },
   { id: 'athletic_conditioning_program', name: 'Athletic Conditioning Program', category: 'FAT_LOSS_CONDITIONING', description: 'Athletic engine + strength emphasis.', goal: 'Build work capacity and durability', experienceLevel: 'Intermediate', daysPerWeek: 5, equipment: ['Barbell', 'Conditioning', 'Bodyweight', 'Cable', 'Dumbbell'], isFeatured: false, sortOrder: 930, blueprint: 'ATHLETIC_CONDITIONING_5' },
 ];
@@ -458,6 +580,11 @@ export const PROGRAM_TEMPLATE_CATALOG = DEFINITIONS.map((definition) => ({
   recoveryDemand: deriveRecoveryDemand(definition),
   adherenceFloor: deriveAdherenceFloor(definition),
   specializationType: deriveSpecializationType(definition),
+  progressionModel: deriveProgressionModel(definition),
+  deloadProtocol: deriveDeloadProtocol(definition),
+  effortTarget: deriveEffortTarget(definition),
+  blockDurationWeeks: deriveBlockDurationWeeks(definition),
+  guardrailNotes: deriveGuardrailNotes(definition),
   days: buildDays(definition.blueprint, definition.equipment),
 })).map((template) => ({
   ...template,
@@ -465,5 +592,14 @@ export const PROGRAM_TEMPLATE_CATALOG = DEFINITIONS.map((definition) => ({
 })).sort((a, b) => a.sortOrder - b.sortOrder);
 
 export const PROGRAM_TEMPLATES = PROGRAM_TEMPLATE_CATALOG;
+
+export const PROGRAM_TEMPLATE_ID_ALIASES = {
+  bodyweight_calisthenics_beginner: 'bodyweight_beginner',
+  home_db_bench_legacy: 'home_dumbbell_bench_program',
+};
+
+export function resolveProgramTemplateId(templateId) {
+  return PROGRAM_TEMPLATE_ID_ALIASES[templateId] || templateId;
+}
 
 export const ONBOARDING_TEMPLATE_ID = 'full_body_beginner_3x';

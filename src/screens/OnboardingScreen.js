@@ -38,6 +38,12 @@ const SLIDES = [
     body: 'See which muscles you\'ve trained this week on an interactive body map. Know when to push and when to rest.',
   },
   {
+    id: 'setup',
+    icon: 'shield-checkmark-outline',
+    title: 'SET UP\nSMART FEATURES',
+    body: 'IRONLOG 1.1.0 adds smart notifications, encrypted local backups, and optional Google Drive backup. We\'ll guide you through the setup after onboarding.',
+  },
+  {
     id: 'ready',
     icon: 'trophy-outline',
     title: "YOU'RE\nREADY",

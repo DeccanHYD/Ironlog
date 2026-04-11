@@ -7,7 +7,12 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "build:android": "npx eas build --platform android --profile production",
-    "build:local": "npx eas build --platform android --profile production --local"
+    "build:local": "npx eas build --platform android --profile production --local",
+    "validate:plans": "node scripts/validate_program_templates.cjs",
+    "qa:notifications": "node scripts/qa_notification_policy.cjs",
+    "qa:migration": "node scripts/qa_migration_contract.cjs",
+    "qa:release-closure": "npm run validate:plans && npm run qa:notifications && npm run qa:migration",
+    "qa:rc": "npm run qa:release-closure"
   },
   "dependencies": {
     "@expo-google-fonts/barlow": "^0.4.1",

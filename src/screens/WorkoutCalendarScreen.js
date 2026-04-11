@@ -12,6 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { AppContext } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
+import { formatWeightFromKg } from '../utils/weightUnits';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CELL_WIDTH = (SCREEN_WIDTH - 32) / 7;
@@ -73,9 +74,15 @@ function calcSessionVolume(session) {
   return Math.round(total);
 }
 
+function toDisplayVolume(kgValue, unit) {
+  const converted = unit === 'lbs' ? kgValue * 2.2046226218 : kgValue;
+  return Math.round(converted);
+}
+
 export default function WorkoutCalendarScreen() {
-  const { history } = useContext(AppContext);
+  const { history, settings } = useContext(AppContext);
   const colors = useTheme();
+  const weightUnit = settings?.weightUnit || 'kg';
 
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -178,11 +185,11 @@ export default function WorkoutCalendarScreen() {
           <View style={[s.statDivider, { backgroundColor: colors.faint }]} />
           <View style={s.statItem}>
             <Text style={s.statVal}>
-              {monthTotalVolume >= 1000
-                ? `${(monthTotalVolume / 1000).toFixed(1)}k`
-                : monthTotalVolume}
+              {toDisplayVolume(monthTotalVolume, weightUnit) >= 1000
+                ? `${(toDisplayVolume(monthTotalVolume, weightUnit) / 1000).toFixed(1)}k`
+                : toDisplayVolume(monthTotalVolume, weightUnit)}
             </Text>
-            <Text style={s.statLabel}>VOLUME (kg)</Text>
+            <Text style={s.statLabel}>VOLUME ({weightUnit})</Text>
           </View>
         </View>
 
@@ -320,7 +327,7 @@ export default function WorkoutCalendarScreen() {
             style={[s.modalSheet, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}
             onPress={() => {}}
           >
-            {selectedSession && <SessionDetailContent session={selectedSession} colors={colors} onClose={() => setModalVisible(false)} />}
+            {selectedSession && <SessionDetailContent session={selectedSession} colors={colors} weightUnit={weightUnit} onClose={() => setModalVisible(false)} />}
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
@@ -328,7 +335,7 @@ export default function WorkoutCalendarScreen() {
   );
 }
 
-function SessionDetailContent({ session, colors, onClose }) {
+function SessionDetailContent({ session, colors, weightUnit, onClose }) {
   const dayColors = { push: '#FF4500', pull: '#0080FF', legs: '#00C170', upper: '#A020F0' };
   const accentColor = dayColors[session.dayId] || colors.accent;
   const volume = calcSessionVolume(session);
@@ -372,7 +379,7 @@ function SessionDetailContent({ session, colors, onClose }) {
           <Text style={[modalS.statNum, { color: colors.text }]}>
             {volume >= 1000 ? `${(volume / 1000).toFixed(1)}k` : volume || '—'}
           </Text>
-          <Text style={[modalS.statLbl, { color: colors.muted }]}>VOL (kg)</Text>
+          <Text style={[modalS.statLbl, { color: colors.muted }]}>VOL ({weightUnit})</Text>
         </View>
       </View>
 
@@ -390,7 +397,7 @@ function SessionDetailContent({ session, colors, onClose }) {
                 <Text style={[modalS.exSets, { color: colors.muted }]}>
                   {ex.sets
                     .map(set => {
-                      const w = set.weight > 0 ? `${set.weight}kg` : 'BW';
+                      const w = set.weight > 0 ? formatWeightFromKg(set.weight, weightUnit) : 'BW';
                       return `${w} × ${set.reps}`;
                     })
                     .join('  ·  ')}

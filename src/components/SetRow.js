@@ -3,6 +3,7 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { triggerHaptic } from '../services/hapticsEngine';
+import { formatWeightFromKg } from '../utils/weightUnits';
 
 const SET_TYPES = ['normal', 'warmup', 'drop', 'failure', 'amrap'];
 
@@ -22,7 +23,7 @@ const TYPE_COLOR = {
   amrap: '#FFD700',
 };
 
-function SetRow({ set, setIndex, exIndex, dispatch, effortTracking, hapticFeedback }) {
+function SetRow({ set, setIndex, exIndex, dispatch, effortTracking, hapticFeedback, weightUnit = 'kg' }) {
   const [noteOpen, setNoteOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editWeight, setEditWeight] = useState(String(set.weight ?? ''));
@@ -96,9 +97,9 @@ function SetRow({ set, setIndex, exIndex, dispatch, effortTracking, hapticFeedba
 
       <View style={s.middle}>
         <Text style={s.valText}>
-          {set.weight > 0 ? `${set.weight}kg` : 'BW'} × {set.reps}
+          {set.weight > 0 ? formatWeightFromKg(set.weight, weightUnit) : 'BW'} × {set.reps}
         </Text>
-        {set.orm > 0 ? <Text style={s.ormText}>~{set.orm}kg 1RM</Text> : null}
+        {set.orm > 0 ? <Text style={s.ormText}>~{formatWeightFromKg(set.orm, weightUnit)} 1RM</Text> : null}
       </View>
 
       <View style={s.right}>
@@ -154,7 +155,7 @@ function SetRow({ set, setIndex, exIndex, dispatch, effortTracking, hapticFeedba
       {editOpen ? (
         <View style={s.editRow}>
           <View style={s.editGroup}>
-            <Text style={s.editLabel}>KG</Text>
+            <Text style={s.editLabel}>{String(weightUnit || 'kg').toUpperCase()}</Text>
             <TextInput
               style={s.editInput}
               value={editWeight}

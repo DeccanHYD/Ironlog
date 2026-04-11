@@ -191,9 +191,10 @@ function reducer(state, action) {
     case 'INSERT_WARMUPS': {
       const { exIndex, warmupSets } = action;
       const existing = state.setLog[exIndex] || [];
+      const workingSets = existing.filter((setItem) => (setItem?.type || 'normal') !== 'warmup');
       return {
         ...state,
-        setLog: { ...state.setLog, [exIndex]: [...warmupSets, ...existing] },
+        setLog: { ...state.setLog, [exIndex]: [...warmupSets, ...workingSets] },
       };
     }
 

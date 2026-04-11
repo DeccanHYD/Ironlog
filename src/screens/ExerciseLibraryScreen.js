@@ -51,7 +51,8 @@ export default function ExerciseLibraryScreen({ navigation }) {
     return exercises.filter(ex => {
       const muscleMatch = matchesExerciseFilter(ex, muscle, { includeCategory: false, includeEquipment: false });
       const catMatch = cat === 'All' || (ex.category && ex.category.trim().toLowerCase() === cat.trim().toLowerCase());
-      return muscleMatch && catMatch && (!q || ex.name.toLowerCase().includes(q));
+      const aliasText = Array.isArray(ex.aliases) ? ex.aliases.join(' ').toLowerCase() : '';
+      return muscleMatch && catMatch && (!q || ex.name.toLowerCase().includes(q) || aliasText.includes(q));
     });
   }, [exercises, muscle, cat, search]);
 

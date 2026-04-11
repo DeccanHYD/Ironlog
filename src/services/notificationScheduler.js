@@ -59,10 +59,13 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function inQuietHours(hour, start, end) {
+function inQuietHours(minuteOfDay, startMinute, endMinute) {
+  const minute = clamp(Math.round(Number(minuteOfDay || 0)), 0, 1439);
+  const start = clamp(Math.round(Number(startMinute || 0)), 0, 1439);
+  const end = clamp(Math.round(Number(endMinute || 0)), 0, 1439);
   if (start === end) return false;
-  if (start < end) return hour >= start && hour < end;
-  return hour >= start || hour < end;
+  if (start < end) return minute >= start && minute < end;
+  return minute >= start || minute < end;
 }
 
 function getWeekStart(date = new Date()) {
@@ -75,6 +78,17 @@ function getWeekStart(date = new Date()) {
 
 function toMinuteOfDay(date) {
   return date.getHours() * 60 + date.getMinutes();
+}
+
+function getQuietBoundaryMinutes(settings = {}) {
+  const startMinutes = Number(settings?.quietHoursStartMinutes);
+  const endMinutes = Number(settings?.quietHoursEndMinutes);
+  const startHour = Number(settings?.quietHoursStart);
+  const endHour = Number(settings?.quietHoursEnd);
+  return {
+    start: Number.isFinite(startMinutes) ? clamp(Math.round(startMinutes), 0, 1439) : clamp(Math.round((Number.isFinite(startHour) ? startHour : 22) * 60), 0, 1439),
+    end: Number.isFinite(endMinutes) ? clamp(Math.round(endMinutes), 0, 1439) : clamp(Math.round((Number.isFinite(endHour) ? endHour : 8) * 60), 0, 1439),
+  };
 }
 
 function median(values = []) {
@@ -304,15 +318,30 @@ function withJitter(triggerDate, jitterMinutes = 12) {
 
 function avoidQuietHours(triggerDate, start, end) {
   const next = new Date(triggerDate);
-  if (!inQuietHours(next.getHours(), start, end)) return next;
-  next.setHours(end, Math.max(next.getMinutes(), 5), 0, 0);
+  if (!inQuietHours(toMinuteOfDay(next), start, end)) return next;
+  next.setHours(Math.floor(end / 60), end % 60, 0, 0);
+  if (next.getTime() <= Date.now()) next.setDate(next.getDate() + 1);
+  if (inQuietHours(toMinuteOfDay(next), start, end)) {
+    next.setMinutes(next.getMinutes() + 15);
+  }
   if (next.getTime() <= Date.now()) next.setDate(next.getDate() + 1);
   return next;
 }
 
-export async function ensureNotificationPermissions() {
+export async function getNotificationPermissionStatus() {
   const perms = await Notifications.getPermissionsAsync();
-  if (perms.granted || perms.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL) return true;
+  const granted = !!(perms.granted || perms.ios?.status === Notifications.IosAuthorizationStatus.PROVISIONAL);
+  return {
+    granted,
+    canAskAgain: perms.canAskAgain !== false,
+    status: perms.status || (granted ? 'granted' : 'denied'),
+    raw: perms,
+  };
+}
+
+export async function ensureNotificationPermissions() {
+  const perms = await getNotificationPermissionStatus();
+  if (perms.granted) return true;
   const requested = await Notifications.requestPermissionsAsync();
   return !!requested.granted;
 }
@@ -387,6 +416,8 @@ export function chooseNotificationCandidate({
   settings = {},
   candidates = [],
   activePlan = null,
+  alreadyActionedTopics = [],
+  alreadyActionedKeys = [],
 } = {}) {
   if (!settings?.enabled || !Array.isArray(candidates) || !candidates.length) {
     return { candidate: null, reason: 'disabled_or_no_candidates' };
@@ -408,8 +439,18 @@ export function chooseNotificationCandidate({
     return { candidate: null, reason: 'weekly_cap' };
   }
 
+  const actionedTopicsSet = new Set((Array.isArray(alreadyActionedTopics) ? alreadyActionedTopics : []).map((value) => String(value || '').toLowerCase()));
+  const actionedKeysSet = new Set((Array.isArray(alreadyActionedKeys) ? alreadyActionedKeys : []).map((value) => String(value || '').toLowerCase()));
+
   const scored = [...candidates]
     .filter((candidate) => candidate?.key)
+    .filter((candidate) => {
+      const key = String(candidate?.key || '').toLowerCase();
+      const topic = String(getCandidateTopic(candidate) || '').toLowerCase();
+      if (actionedKeysSet.has(key)) return false;
+      if (actionedTopicsSet.has(topic)) return false;
+      return true;
+    })
     .filter((candidate) => !isCooldownActive(settings, candidate.key, profile))
     .filter((candidate) => !isTopicCooldownActive(settings, getCandidateTopic(candidate), profile))
     .map((candidate) => {
@@ -424,7 +465,20 @@ export function chooseNotificationCandidate({
     })
     .sort((a, b) => Number(b?.score || 0) - Number(a?.score || 0));
 
-  if (!scored.length) return { candidate: null, reason: 'cooldown_or_topic_gate' };
+  if (!scored.length) {
+    if (actionedTopicsSet.size || actionedKeysSet.size) {
+      const hadAny = candidates.some((candidate) => candidate?.key);
+      const blockedByActioned = hadAny && candidates
+        .filter((candidate) => candidate?.key)
+        .every((candidate) => {
+          const key = String(candidate?.key || '').toLowerCase();
+          const topic = String(getCandidateTopic(candidate) || '').toLowerCase();
+          return actionedKeysSet.has(key) || actionedTopicsSet.has(topic);
+        });
+      if (blockedByActioned) return { candidate: null, reason: 'already_actioned' };
+    }
+    return { candidate: null, reason: 'cooldown_or_topic_gate' };
+  }
   return { candidate: scored[0], reason: 'selected' };
 }
 
@@ -454,9 +508,17 @@ export async function scheduleSmartNotification({
   updateSettings,
   candidates = [],
   activePlan = null,
+  alreadyActionedTopics = [],
+  alreadyActionedKeys = [],
 } = {}) {
   const profile = getProfile(settings);
-  const result = chooseNotificationCandidate({ settings, candidates, activePlan });
+  const result = chooseNotificationCandidate({
+    settings,
+    candidates,
+    activePlan,
+    alreadyActionedTopics,
+    alreadyActionedKeys,
+  });
   const chosen = result?.candidate || null;
   if (!chosen) {
     if (typeof updateSettings === 'function' && result?.reason) {
@@ -485,12 +547,11 @@ export async function scheduleSmartNotification({
     return null;
   }
 
-  const quietStart = Number(settings.quietHoursStart || 22);
-  const quietEnd = Number(settings.quietHoursEnd || 8);
+  const quietBounds = getQuietBoundaryMinutes(settings);
   const baseDate = chosen.triggerDate instanceof Date ? chosen.triggerDate : new Date(Date.now() + 30 * 60000);
   const windowed = applyDeliveryWindow(baseDate, chosen.windows);
   const jittered = withJitter(windowed, Number(settings?.deliveryJitterMinutes || profile.deliveryJitterMinutes));
-  const triggerDate = avoidQuietHours(jittered, quietStart, quietEnd);
+  const triggerDate = avoidQuietHours(jittered, quietBounds.start, quietBounds.end);
 
   const notificationId = await Notifications.scheduleNotificationAsync({
     content: {

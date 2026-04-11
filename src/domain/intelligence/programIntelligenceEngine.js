@@ -102,7 +102,7 @@ export function buildAdaptiveDayTargets({
   if (!day?.exercises?.length) return [];
   const mode = getGoalModeConfig(goalMode);
 
-  return day.exercises
+  const targets = day.exercises
     .filter((exercise) => !exercise?.isWarmup)
     .map((exercise) => {
       const suggestion = buildProgressionSuggestion({
@@ -135,5 +135,15 @@ export function buildAdaptiveDayTargets({
       };
     })
     .filter(Boolean);
-}
 
+  // Prevent noisy duplicates in UI when a day accidentally repeats the same exercise entry.
+  const deduped = [];
+  const seen = new Set();
+  targets.forEach((target) => {
+    const key = String(target.exerciseId || target.exerciseName || '').trim().toLowerCase();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    deduped.push(target);
+  });
+  return deduped;
+}

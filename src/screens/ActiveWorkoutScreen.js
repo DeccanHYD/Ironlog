@@ -360,7 +360,9 @@ function SwapModal({ visible, exercise, onSwap, onClose, colors, mode = 'swap' }
       includeCategory: true,
       includeEquipment: isLibraryMode,
     });
-    const sr = !search || e.name.toLowerCase().includes(search.toLowerCase());
+    const needle = String(search || '').toLowerCase();
+    const aliasText = Array.isArray(e.aliases) ? e.aliases.join(' ').toLowerCase() : '';
+    const sr = !search || e.name.toLowerCase().includes(needle) || aliasText.includes(needle);
     return ms && sr;
   });
   const filtered = isLibraryMode

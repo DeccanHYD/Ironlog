@@ -2,6 +2,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { EXERCISES } from '../data/exerciseLibrary';
 import { EXERCISE_ID_MAP } from '../data/exerciseMapping';
+import { resolveCanonicalExerciseName } from '../data/exerciseAliases';
 
 const SCHEMA_VERSION_KEY = '@ironlog/schemaVersion';
 const MIGRATION_ERRORS_KEY = '@ironlog/migrationErrors';
@@ -230,7 +231,10 @@ async function migrate10to11() {
     const mappedExercises = session.exercises.map(ex => {
       if (!ex.primaryMuscles || ex.primaryMuscles.length === 0) {
         const mappedId = EXERCISE_ID_MAP[ex.name];
-        const libMatch = mappedId ? EXERCISES.find(e => e.id === mappedId) : EXERCISES.find(e => e.name === ex.name);
+        const canonicalName = resolveCanonicalExerciseName(ex.name);
+        const libMatch = mappedId
+          ? EXERCISES.find((item) => item.id === mappedId)
+          : EXERCISES.find((item) => resolveCanonicalExerciseName(item.name) === canonicalName || item.name === ex.name);
         if (libMatch && libMatch.primaryMuscles) {
           changed = true;
           return { ...ex, primaryMuscles: libMatch.primaryMuscles };

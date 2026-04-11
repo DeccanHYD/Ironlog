@@ -4,6 +4,7 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import { AppContext } from '../context/AppContext';
 import { useTheme } from '../context/ThemeContext';
+import { formatWeightFromKg } from '../utils/weightUnits';
 
 function getStreak(history) {
   if (!history.length) return 0;
@@ -20,8 +21,9 @@ function getStreak(history) {
 }
 
 export default function StatsScreen({ navigation }) {
-  const { history, pb, clearPbs } = useContext(AppContext);
+  const { history, pb, clearPbs, settings } = useContext(AppContext);
   const colors = useTheme();
+  const weightUnit = settings?.weightUnit || 'kg';
   const streak = getStreak(history);
   const totalSets = history.reduce((a, h) => a + h.sets, 0);
   const avgDur = history.length ? Math.round(history.reduce((a, h) => a + h.duration, 0) / history.length / 60) : 0;
@@ -101,9 +103,9 @@ export default function StatsScreen({ navigation }) {
               <View key={k} style={[s.pbRow, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 14, fontWeight: '600', color: colors.text }}>{name}</Text>
-                  <Text style={{ fontSize: 11, color: colors.muted }}>Est. 1RM: ~{orm}kg</Text>
+                  <Text style={{ fontSize: 11, color: colors.muted }}>Est. 1RM: ~{formatWeightFromKg(orm, weightUnit)}</Text>
                 </View>
-                <Text style={{ fontSize: 16, fontWeight: '800', color: colors.gold }}>🏆 {v}kg</Text>
+                <Text style={{ fontSize: 16, fontWeight: '800', color: colors.gold }}>🏆 {formatWeightFromKg(v, weightUnit)}</Text>
               </View>
             );
           })}

@@ -13,6 +13,18 @@ function roundToIncrement(value, increment = 2.5) {
   return Math.round(value / increment) * increment;
 }
 
+function parsePositiveNumber(value, fallback) {
+  const numeric = Number(value);
+  if (Number.isFinite(numeric) && numeric > 0) return numeric;
+  const text = String(value || '');
+  const first = text.match(/\d+(\.\d+)?/);
+  if (first) {
+    const parsed = Number(first[0]);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  return fallback;
+}
+
 function getWorkingSets(exercise) {
   return (exercise?.sets || []).filter((setItem) => (setItem?.type || 'normal') !== 'warmup');
 }
@@ -119,8 +131,14 @@ function choosePlateauAction(profile, plateau) {
 }
 
 function chooseLoadAdjustment(profile, lastExposure, successState, repeatedMiss) {
-  const baseWeight = Number(lastExposure?.bestWeight || 0);
-  const targetReps = Number(lastExposure?.prescribedReps || 0);
+  let baseWeight = Number(lastExposure?.bestWeight || 0);
+  const targetReps = parsePositiveNumber(lastExposure?.prescribedReps, 8);
+
+  // Bodyweight lifts are frequently logged with body mass in the weight field.
+  // Treat that as BW baseline, not external load for progression targets.
+  if (profile.loadModel === 'bodyweight_progression' && baseWeight >= 40) {
+    baseWeight = 0;
+  }
 
   if (profile.loadModel === 'barbell_upper_compound') {
     if (repeatedMiss) return { action: 'reduce', targetWeight: roundToIncrement(baseWeight * 0.95, 2.5), targetReps: Math.max(5, targetReps - 1) };
@@ -183,8 +201,19 @@ export function buildProgressionSuggestion({
   const lastExposure = exposures[0];
   if (!lastExposure || !lastExposure.workingSets.length) return null;
 
-  const targetReps = Number(exercise?.reps || exercise?.prescribedReps || lastExposure.prescribedReps || lastExposure.bestReps || 8);
-  const targetSets = Number(exercise?.sets || exercise?.prescribedSets || lastExposure.prescribedSets || lastExposure.workingSetCount || 3);
+  const targetReps = parsePositiveNumber(
+    exercise?.reps ?? exercise?.prescribedReps ?? lastExposure.prescribedReps ?? lastExposure.bestReps,
+    8
+  );
+  const targetSets = Math.max(
+    1,
+    Math.round(
+      parsePositiveNumber(
+        exercise?.sets ?? exercise?.prescribedSets ?? lastExposure.prescribedSets ?? lastExposure.workingSetCount,
+        3
+      )
+    )
+  );
   const successState = computeSuccessState(lastExposure, targetReps, targetSets);
   const previousState = exposures[1] ? computeSuccessState(exposures[1], targetReps, targetSets) : null;
   const repeatedMiss = successState.status === 'fail' && previousState?.status === 'fail';

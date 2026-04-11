@@ -234,19 +234,19 @@ export default function BackupCenterScreen({ navigation }) {
     }
   };
 
-  const handleConnectDrive = async () => {
+  const handleConnectDrive = async (connectOptions = {}) => {
     if (backupStatus.driveConfigured === false) {
-      setAlertConfig({
-        title: 'Drive unavailable',
-        message: backupStatus.driveConfigMessage || 'Google Drive backup is not configured yet on this device.',
-        buttons: [{ text: 'OK', style: 'default' }],
-      });
+      openOauthModal();
       return;
     }
     if (!ensurePassphraseConfigured('set')) return;
     setBusy(true);
     try {
-      const result = await linkDriveBackup({ mode: backupStatus.driveMode === 'appdata' ? 'appdata' : 'folder' });
+      const preferredMode = connectOptions?.mode || backupStatus.driveMode || 'appdata';
+      const result = await linkDriveBackup({
+        mode: preferredMode === 'folder' ? 'folder' : 'appdata',
+        folderName: connectOptions?.folderName || backupStatus.driveFolderName || 'IRONLOG Backups',
+      });
       if (!result?.connected) {
         setAlertConfig({ title: 'Drive link cancelled', message: 'Google Drive backup stays disabled until you finish the sign-in flow.', buttons: [{ text: 'OK', style: 'default' }] });
       } else {
@@ -320,7 +320,7 @@ export default function BackupCenterScreen({ navigation }) {
     setOauthModalVisible(true);
   };
 
-  const handleSaveOAuthClient = async () => {
+  const handleSaveOAuthClient = async (connectAfterSave = false) => {
     const next = String(oauthClientIdInput || '').trim();
     if (!next) {
       setAlertConfig({ title: 'Client ID required', message: 'Paste your Google OAuth Android client ID to enable Drive sign-in.', buttons: [{ text: 'OK', style: 'default' }] });
@@ -331,6 +331,10 @@ export default function BackupCenterScreen({ navigation }) {
       await saveDriveOAuthClient(next);
       setOauthModalVisible(false);
       await refreshScreen();
+      if (connectAfterSave) {
+        await handleConnectDrive();
+        return;
+      }
       setAlertConfig({ title: 'Drive OAuth saved', message: 'Google Drive can now be linked from this device.', buttons: [{ text: 'OK', style: 'default' }] });
     } catch (error) {
       setAlertConfig({ title: 'Could not save OAuth', message: String(error?.message || error), buttons: [{ text: 'OK', style: 'default' }] });
@@ -493,10 +497,10 @@ export default function BackupCenterScreen({ navigation }) {
           onPress={() => openPassphraseModal('set')}
         />
         <ActionButton
-          label={backupStatus.driveLinked ? 'Disconnect Google Drive' : backupStatus.driveConfigured === false ? 'Google Drive unavailable in this build' : 'Connect Google Drive'}
+          label={backupStatus.driveLinked ? 'Disconnect Google Drive' : 'Connect Google Drive'}
           hint={
             backupStatus.driveConfigured === false
-              ? (backupStatus.driveConfigMessage || 'Drive OAuth client is not configured for this build.')
+              ? (backupStatus.driveConfigMessage || 'Drive setup is needed before first sign-in.')
               : backupStatus.driveLinked
                 ? (
                     backupStatus.driveMode === 'folder'
@@ -509,12 +513,27 @@ export default function BackupCenterScreen({ navigation }) {
           colors={colors}
           onPress={backupStatus.driveLinked ? handleDisconnectDrive : handleConnectDrive}
           tone={backupStatus.driveLinked ? 'danger' : 'normal'}
-          disabled={!backupStatus.driveLinked && backupStatus.driveConfigured === false}
         />
-        {!backupStatus.driveLinked && backupStatus.driveConfigured === false ? (
+        {!backupStatus.driveLinked ? (
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity
+              style={[s.modalBtn, { borderColor: colors.faint, flex: 1 }]}
+              onPress={() => handleConnectDrive({ mode: 'appdata' })}
+            >
+              <Text style={[s.modalBtnText, { color: colors.subtext }]}>Connect AppData</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.modalBtn, { borderColor: colors.accent, backgroundColor: colors.accentSoft, flex: 1 }]}
+              onPress={() => handleConnectDrive({ mode: 'folder' })}
+            >
+              <Text style={[s.modalBtnText, { color: colors.accent }]}>Connect Folder Sync</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+        {!backupStatus.driveLinked ? (
           <ActionButton
             label="Set Google OAuth Client ID"
-            hint="One-time device setup to enable Drive sign-in for this build."
+            hint="One-time setup. After saving, connect your own Google account."
             icon="key-outline"
             colors={colors}
             onPress={openOauthModal}
@@ -552,6 +571,17 @@ export default function BackupCenterScreen({ navigation }) {
             ) : null}
           </>
         ) : null}
+        <View style={[s.guideBox, { borderColor: colors.faint, backgroundColor: colors.bg }]}>
+          <Text style={[s.guideTitle, { color: colors.text }]}>HOW DRIVE AUTH WORKS</Text>
+          <Text style={[s.guideText, { color: colors.subtext }]}>1. Set your backup passphrase first.</Text>
+          <Text style={[s.guideText, { color: colors.subtext }]}>
+            2. If this build says Drive is unavailable, tap `Set Google OAuth Client ID` in this section.
+          </Text>
+          <Text style={[s.guideText, { color: colors.subtext }]}>3. Tap `Connect Google Drive` to open Google sign-in and consent.</Text>
+          <Text style={[s.guideText, { color: colors.subtext }]}>
+            4. After linking, choose hidden `AppData` sync or a visible Drive folder. Folder mode creates or reuses `IRONLOG Backups` in your Drive root.
+          </Text>
+        </View>
       </Section>
 
       <Section title="BACKUP ACTIONS" colors={colors}>
@@ -716,8 +746,11 @@ export default function BackupCenterScreen({ navigation }) {
               <TouchableOpacity style={[s.modalBtn, { borderColor: colors.faint }]} onPress={() => setOauthModalVisible(false)}>
                 <Text style={[s.modalBtnText, { color: colors.muted }]}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[s.modalBtn, { borderColor: colors.accent, backgroundColor: colors.accentSoft }]} onPress={handleSaveOAuthClient} disabled={busy}>
-                <Text style={[s.modalBtnText, { color: colors.accent }]}>{busy ? 'Saving...' : 'Save'}</Text>
+              <TouchableOpacity style={[s.modalBtn, { borderColor: colors.faint }]} onPress={() => handleSaveOAuthClient(false)} disabled={busy}>
+                <Text style={[s.modalBtnText, { color: colors.subtext }]}>{busy ? 'Saving...' : 'Save only'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[s.modalBtn, { borderColor: colors.accent, backgroundColor: colors.accentSoft }]} onPress={() => handleSaveOAuthClient(true)} disabled={busy}>
+                <Text style={[s.modalBtnText, { color: colors.accent }]}>{busy ? 'Saving...' : 'Save & Connect'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -754,6 +787,9 @@ const s = StyleSheet.create({
   iconWrap: { width: 36, height: 36, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   actionTitle: { fontSize: 14, fontWeight: '800' },
   actionHint: { fontSize: 11, lineHeight: 16, marginTop: 2 },
+  guideBox: { borderWidth: 1, padding: 12, gap: 6 },
+  guideTitle: { fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
+  guideText: { fontSize: 12, lineHeight: 18 },
   previewText: { fontSize: 12, lineHeight: 18 },
   previewEmpty: { fontSize: 12, lineHeight: 18 },
   countGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
